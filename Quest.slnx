@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="QuestBackend/QuestBackend.csproj" />
+  <Project Path="QuestUI/QuestUI.csproj" />
+</Solution>
