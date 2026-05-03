@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Http;
 using QuestBackend;
 
 namespace QuestUI.Auth;
@@ -10,46 +11,20 @@ public sealed class CustomAuthStateProvider : AuthenticationStateProvider
 
     private readonly PlayerSession _playerSession;
     private readonly QuizSessionService _quizSession;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private bool _restoreAttempted;
 
-    public CustomAuthStateProvider(PlayerSession playerSession, QuizSessionService quizSession)
+    public CustomAuthStateProvider(PlayerSession playerSession, QuizSessionService quizSession, IHttpContextAccessor httpContextAccessor)
     {
         _playerSession = playerSession;
         _quizSession = quizSession;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public override Task<AuthenticationState> GetAuthenticationStateAsync()
-        => Task.FromResult(CreateAuthenticationState());
-
-    public Task<LoginResult> LoginAsync(string userName)
     {
-        if (_playerSession.IsAuthenticated)
-        {
-            return Task.FromResult(LoginResult.Failure("A user is already logged in for this session."));
-        }
-
-        var trimmedUserName = userName?.Trim() ?? string.Empty;
-        var isAdmin = trimmedUserName == "admin";
-
-        if (!_quizSession.TryJoin(trimmedUserName, isAdmin, out var errorMessage))
-        {
-            return Task.FromResult(LoginResult.Failure(errorMessage));
-        }
-
-        _playerSession.Set(trimmedUserName, isAdmin);
-        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
-        return Task.FromResult(LoginResult.Success());
-    }
-
-    public Task LogoutAsync()
-    {
-        if (_playerSession.IsAuthenticated)
-        {
-            _quizSession.Leave(_playerSession.UserName);
-            _playerSession.Clear();
-            NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
-        }
-
-        return Task.CompletedTask;
+        RestoreFromCookieIfNeeded();
+        return Task.FromResult(CreateAuthenticationState());
     }
 
     private AuthenticationState CreateAuthenticationState()
@@ -71,5 +46,26 @@ public sealed class CustomAuthStateProvider : AuthenticationStateProvider
 
         var identity = new ClaimsIdentity(claims, nameof(CustomAuthStateProvider));
         return new AuthenticationState(new ClaimsPrincipal(identity));
+    }
+
+    private void RestoreFromCookieIfNeeded()
+    {
+        if (_playerSession.IsAuthenticated || _restoreAttempted)
+        {
+            return;
+        }
+
+        _restoreAttempted = true;
+
+        var restoreToken = _httpContextAccessor.HttpContext?.Request.Cookies[QuestAuthCookie.CookieName];
+        if (string.IsNullOrWhiteSpace(restoreToken))
+        {
+            return;
+        }
+
+        if (_quizSession.TryRestoreUser(restoreToken, out var user) && user is not null)
+        {
+            _playerSession.Set(user.UserName, user.IsAdmin, user.RestoreToken);
+        }
     }
 }

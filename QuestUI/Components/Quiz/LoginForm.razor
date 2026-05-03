@@ -5,9 +5,9 @@
         <p class="muted">Pick a unique username. Enter <strong>admin</strong> to access moderator controls.</p>
     </div>
 
-    <form @onsubmit="OnSubmit" @onsubmit:preventDefault>
+    <form method="post" action="/auth/login">
         <label class="field-label" for="username">Username</label>
-        <input id="username" class="text-input" value="@UserName" @oninput="HandleUserNameChanged" />
+        <input id="username" name="username" class="text-input" value="@UserName" />
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
             <p class="error-text">@ErrorMessage</p>
@@ -23,12 +23,4 @@
     [Parameter]
     public string ErrorMessage { get; set; } = string.Empty;
 
-    [Parameter]
-    public EventCallback<string> UserNameChanged { get; set; }
-
-    [Parameter]
-    public EventCallback OnSubmit { get; set; }
-
-    private Task HandleUserNameChanged(ChangeEventArgs args)
-        => UserNameChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
 }

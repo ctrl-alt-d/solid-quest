@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using System.Security.Claims
+@using Microsoft.AspNetCore.Components
 @implements IDisposable
 @inject CustomAuthStateProvider AuthProvider
 @inject QuizSessionService QuizSession
@@ -10,16 +11,14 @@
     @if (!_isAuthenticated)
     {
         <LoginForm UserName="@_loginUserName"
-                   UserNameChanged="@(value => _loginUserName = value)"
-                   ErrorMessage="@_loginError"
-                   OnSubmit="HandleLoginAsync" />
+                   ErrorMessage="@_loginError" />
     }
     else
     {
         var snapshot = QuizSession.GetSnapshot(_userName);
         var currentQuestion = snapshot.CurrentQuestion;
 
-        <SessionHeader UserName="@_userName" IsAdmin="@_isAdmin" OnLeave="HandleLogoutAsync" />
+        <SessionHeader UserName="@_userName" IsAdmin="@_isAdmin" />
 
         @if (!string.IsNullOrWhiteSpace(_actionError))
         {
@@ -64,39 +63,24 @@
     private bool _isAuthenticated;
     private bool _isAdmin;
 
+    [SupplyParameterFromQuery(Name = "loginError")]
+    private string? LoginError { get; set; }
+
+    [SupplyParameterFromQuery(Name = "username")]
+    private string? LoginUserName { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
-        AuthProvider.AuthenticationStateChanged += HandleAuthenticationStateChanged;
         QuizSession.StateChanged += HandleQuizSessionChanged;
 
         var authenticationState = await AuthProvider.GetAuthenticationStateAsync();
         UpdateUser(authenticationState.User);
+        SyncLoginFormFromQuery();
     }
 
     public void Dispose()
     {
-        AuthProvider.AuthenticationStateChanged -= HandleAuthenticationStateChanged;
         QuizSession.StateChanged -= HandleQuizSessionChanged;
-    }
-
-    private async Task HandleLoginAsync()
-    {
-        var loginResult = await AuthProvider.LoginAsync(_loginUserName);
-        if (!loginResult.Succeeded)
-        {
-            _loginError = loginResult.ErrorMessage;
-            return;
-        }
-
-        _loginError = string.Empty;
-        _actionError = string.Empty;
-        _loginUserName = string.Empty;
-    }
-
-    private async Task HandleLogoutAsync()
-    {
-        await AuthProvider.LogoutAsync();
-        _actionError = string.Empty;
     }
 
     private Task HandleStartAsync()
@@ -141,16 +125,6 @@
         return Task.CompletedTask;
     }
 
-    private void HandleAuthenticationStateChanged(Task<AuthenticationState> authenticationStateTask)
-    {
-        _ = InvokeAsync(async () =>
-        {
-            var authenticationState = await authenticationStateTask;
-            UpdateUser(authenticationState.User);
-            StateHasChanged();
-        });
-    }
-
     private void HandleQuizSessionChanged()
     {
         _ = InvokeAsync(StateHasChanged);
@@ -166,5 +140,18 @@
         {
             _actionError = string.Empty;
         }
+    }
+
+    private void SyncLoginFormFromQuery()
+    {
+        if (_isAuthenticated)
+        {
+            _loginError = string.Empty;
+            _loginUserName = string.Empty;
+            return;
+        }
+
+        _loginError = LoginError ?? string.Empty;
+        _loginUserName = LoginUserName ?? string.Empty;
     }
 }

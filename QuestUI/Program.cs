@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Components.Authorization;
 using QuestBackend;
 using QuestUI.Auth;
@@ -10,13 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddMyFeature();
 builder.Services.AddScoped<PlayerSession>();
 builder.Services.AddScoped<CustomAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(serviceProvider => serviceProvider.GetRequiredService<CustomAuthStateProvider>());
-builder.Services.AddScoped<CircuitHandler, QuestCircuitHandler>();
 
 var app = builder.Build();
 
@@ -31,8 +30,25 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
+app.Use(async (httpContext, next) =>
+{
+    if (HttpMethods.IsGet(httpContext.Request.Method)
+        && !Path.HasExtension(httpContext.Request.Path.Value)
+        && httpContext.Request.Cookies.TryGetValue(QuestAuthCookie.CookieName, out var restoreToken)
+        && !string.IsNullOrWhiteSpace(restoreToken))
+    {
+        var quizSession = httpContext.RequestServices.GetRequiredService<QuizSessionService>();
+        if (!quizSession.TryRestoreUser(restoreToken, out _))
+        {
+            httpContext.Response.Cookies.Delete(QuestAuthCookie.CookieName, QuestAuthCookie.Delete(httpContext));
+        }
+    }
+
+    await next();
+});
 
 app.MapStaticAssets();
+app.MapQuestAuthEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

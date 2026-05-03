@@ -9,22 +9,53 @@ public sealed class QuizSessionServiceTests
     {
         var session = CreateSession();
 
-        var firstJoin = session.TryJoin("Alice", isAdmin: false, out var firstError);
+        var firstJoin = session.TryJoin("Alice", isAdmin: false, out var firstUser, out var firstError);
         var duplicateJoin = session.TryJoin(" Alice ", isAdmin: false, out var duplicateError);
         var reservedAdminJoin = session.TryJoin("admin", isAdmin: false, out var reservedAdminError);
-        var adminJoin = session.TryJoin("admin", isAdmin: true, out var adminError);
+        var adminJoin = session.TryJoin("admin", isAdmin: true, out var adminUser, out var adminError);
         var snapshot = session.GetSnapshot();
 
         Assert.True(firstJoin);
+        Assert.NotNull(firstUser);
+        Assert.True(Guid.TryParse(firstUser!.RestoreToken, out _));
         Assert.Equal(string.Empty, firstError);
         Assert.False(duplicateJoin);
         Assert.Contains("already taken", duplicateError);
         Assert.False(reservedAdminJoin);
         Assert.Equal("The username 'admin' is reserved.", reservedAdminError);
         Assert.True(adminJoin);
+        Assert.NotNull(adminUser);
+        Assert.True(Guid.TryParse(adminUser!.RestoreToken, out _));
         Assert.Equal(string.Empty, adminError);
         Assert.True(snapshot.HasAdmin);
         Assert.Equal(new[] { "Alice" }, snapshot.EnrolledPlayers);
+    }
+
+    [Fact]
+    public void TryRestoreUser_ReturnsExistingUser_ByRestoreToken()
+    {
+        var session = CreateSession();
+        session.TryJoin("Alice", isAdmin: false, out var joinedUser, out _);
+
+        var restored = session.TryRestoreUser(joinedUser!.RestoreToken, out var restoredUser);
+
+        Assert.True(restored);
+        Assert.NotNull(restoredUser);
+        Assert.Equal("Alice", restoredUser!.UserName);
+        Assert.Equal(joinedUser.RestoreToken, restoredUser.RestoreToken);
+        Assert.False(restoredUser.IsAdmin);
+    }
+
+    [Fact]
+    public void LeaveByRestoreToken_RemovesUser_AndInvalidatesRestoreToken()
+    {
+        var session = CreateSession();
+        session.TryJoin("Alice", isAdmin: false, out var joinedUser, out _);
+
+        session.LeaveByRestoreToken(joinedUser!.RestoreToken);
+
+        Assert.False(session.TryRestoreUser(joinedUser.RestoreToken, out _));
+        Assert.Empty(session.GetSnapshot().EnrolledPlayers);
     }
 
     [Fact]

@@ -3,9 +3,13 @@
 public sealed class Users
 {
     private readonly Dictionary<string, User> _users = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, User> _usersByRestoreToken = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
 
     public bool TryAdd(string userName, bool isAdmin, out string? errorMessage)
+        => TryAdd(userName, isAdmin, out _, out errorMessage);
+
+    public bool TryAdd(string userName, bool isAdmin, out User? user, out string? errorMessage)
     {
         var normalizedUserName = Normalize(userName);
 
@@ -13,17 +17,22 @@ public sealed class Users
         {
             if (_users.ContainsKey(normalizedUserName))
             {
+                user = null;
                 errorMessage = $"Username '{userName}' is already taken.";
                 return false;
             }
 
-            _users[normalizedUserName] = new User
+            user = new User
             {
                 UserName = userName,
+                RestoreToken = CreateRestoreToken(),
                 Score = 0,
                 TotalMilliseconds = 0,
                 IsAdmin = isAdmin
             };
+
+            _users[normalizedUserName] = user;
+            _usersByRestoreToken[user.RestoreToken] = user;
         }
 
         errorMessage = null;
@@ -36,7 +45,12 @@ public sealed class Users
 
         lock (_lock)
         {
-            _users.Remove(normalizedUserName);
+            if (_users.Remove(normalizedUserName, out var user)
+                && !string.IsNullOrWhiteSpace(user.RestoreToken))
+            {
+                _usersByRestoreToken.Remove(user.RestoreToken);
+                user.RestoreToken = string.Empty;
+            }
         }
     }
 
@@ -45,6 +59,14 @@ public sealed class Users
         lock (_lock)
         {
             return _users.ContainsKey(Normalize(userName));
+        }
+    }
+
+    public bool TryGetByRestoreToken(string restoreToken, out User? user)
+    {
+        lock (_lock)
+        {
+            return _usersByRestoreToken.TryGetValue(restoreToken.Trim(), out user);
         }
     }
 
@@ -131,4 +153,17 @@ public sealed class Users
     }
 
     private static string Normalize(string userName) => userName.Trim();
+
+    private string CreateRestoreToken()
+    {
+        string restoreToken;
+
+        do
+        {
+            restoreToken = Guid.NewGuid().ToString("N");
+        }
+        while (_usersByRestoreToken.ContainsKey(restoreToken));
+
+        return restoreToken;
+    }
 }

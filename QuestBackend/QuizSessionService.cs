@@ -45,9 +45,13 @@ public sealed class QuizSessionService
     }
 
     public bool TryJoin(string userName, bool isAdmin, out string errorMessage)
+        => TryJoin(userName, isAdmin, out _, out errorMessage);
+
+    public bool TryJoin(string userName, bool isAdmin, out User? user, out string errorMessage)
     {
         if (string.IsNullOrWhiteSpace(userName))
         {
+            user = null;
             errorMessage = "Username is required.";
             return false;
         }
@@ -58,17 +62,19 @@ public sealed class QuizSessionService
         {
             if (!isAdmin && _stage != QuizStage.Enrollment)
             {
+                user = null;
                 errorMessage = "Enrollment is closed.";
                 return false;
             }
 
             if (trimmedUserName.Equals("admin", StringComparison.OrdinalIgnoreCase) && !isAdmin)
             {
+                user = null;
                 errorMessage = "The username 'admin' is reserved.";
                 return false;
             }
 
-            if (!_users.TryAdd(trimmedUserName, isAdmin, out var duplicateMessage))
+            if (!_users.TryAdd(trimmedUserName, isAdmin, out user, out var duplicateMessage))
             {
                 errorMessage = duplicateMessage!;
                 return false;
@@ -78,6 +84,17 @@ public sealed class QuizSessionService
         errorMessage = string.Empty;
         NotifyStateChanged();
         return true;
+    }
+
+    public bool TryRestoreUser(string restoreToken, out User? user)
+    {
+        if (string.IsNullOrWhiteSpace(restoreToken))
+        {
+            user = null;
+            return false;
+        }
+
+        return _users.TryGetByRestoreToken(restoreToken, out user);
     }
 
     public void Leave(string userName)
@@ -112,6 +129,16 @@ public sealed class QuizSessionService
         {
             NotifyStateChanged();
         }
+    }
+
+    public void LeaveByRestoreToken(string restoreToken)
+    {
+        if (!TryRestoreUser(restoreToken, out var user) || user is null)
+        {
+            return;
+        }
+
+        Leave(user.UserName);
     }
 
     public bool TryStart(string userName, out string errorMessage)
