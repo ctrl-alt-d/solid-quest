@@ -2,7 +2,7 @@
     <div class="question-header">
         <div>
             <p class="eyebrow">Question @Question.Number / @Question.Total</p>
-            <h2>@Question.Text</h2>
+            <h2>@((MarkupString)Question.Text)</h2>
         </div>
         <p class="muted">@Question.Responses / @Question.TotalPlayers answers received</p>
     </div>
@@ -24,7 +24,7 @@
                         type="button"
                         @onclick="() => OnAnswer.InvokeAsync(answer.Index)">
                     <span class="answer-option-label">Option @answer.Index</span>
-                    <span>@answer.Text</span>
+                    <span>@((MarkupString)answer.Text)</span>
                 </button>
             }
         </div>

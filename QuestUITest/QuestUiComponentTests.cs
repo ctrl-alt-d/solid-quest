@@ -12,7 +12,7 @@ using QuestUI.Components.Quiz;
 
 namespace QuestUITest;
 
-public class KahootUiComponentTests : BunitContext
+public class QuestUiComponentTests : BunitContext
 {
     [Fact]
     public void QuestionCardAppliesDistinctAnswerClasses()
@@ -34,6 +34,28 @@ public class KahootUiComponentTests : BunitContext
         buttons[1].ClassList.Should().Contain("answer-2");
         buttons[2].ClassList.Should().Contain("answer-3");
         buttons[3].ClassList.Should().Contain("answer-4");
+    }
+
+    [Fact]
+    public void QuestionCardRendersQuestionAndAnswersAsHtmlMarkup()
+    {
+        var question = CreateQuestion(
+            new AnswerOptionView(1, "Use <code>SRP</code>", 2, false),
+            new AnswerOptionView(2, "Blue", 1, false),
+            new AnswerOptionView(3, "Green", 3, true),
+            new AnswerOptionView(4, "Yellow", 0, false)) with
+        {
+            Text = "What is <strong>SOLID</strong>?"
+        };
+
+        var cut = Render<QuestionCard>(parameters => parameters
+            .Add(component => component.Question, question)
+            .Add(component => component.OnAnswer, EventCallback.Factory.Create<int>(this, _ => { })));
+
+        cut.Find("h2").InnerHtml.Should().Contain("<strong>SOLID</strong>");
+        cut.Find("button.answer-button.answer-1 span:last-child").InnerHtml.Should().Contain("<code>SRP</code>");
+        cut.Markup.Should().NotContain("&lt;strong&gt;SOLID&lt;/strong&gt;");
+        cut.Markup.Should().NotContain("&lt;code&gt;SRP&lt;/code&gt;");
     }
 
     [Fact]
@@ -60,6 +82,27 @@ public class KahootUiComponentTests : BunitContext
         bars[1].TextContent.Should().Contain("Correct");
         bars[1].ClassList.Should().Contain("correct-result");
         bars[0].TextContent.Should().Contain("4");
+    }
+
+    [Fact]
+    public void ResultCardRendersQuestionAndAnswersAsHtmlMarkup()
+    {
+        var question = CreateQuestion(
+            new AnswerOptionView(1, "Use <code>SRP</code>", 4, false),
+            new AnswerOptionView(2, "<em>Blue</em>", 3, true),
+            new AnswerOptionView(3, "Green", 2, false),
+            new AnswerOptionView(4, "Yellow", 1, false)) with
+        {
+            Text = "What is <strong>SOLID</strong>?"
+        };
+
+        var cut = Render<ResultCard>(parameters => parameters
+            .Add(component => component.Question, question));
+
+        cut.Find("h2").InnerHtml.Should().Contain("<strong>SOLID</strong>");
+        cut.Find(".result-bar-card.answer-1 strong").InnerHtml.Should().Contain("<code>SRP</code>");
+        cut.Find(".result-bar-card.answer-2 strong").InnerHtml.Should().Contain("<em>Blue</em>");
+        cut.Markup.Should().NotContain("&lt;strong&gt;SOLID&lt;/strong&gt;");
     }
 
     [Fact]

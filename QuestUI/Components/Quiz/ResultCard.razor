@@ -1,6 +1,6 @@
 <article class="card">
     <p class="eyebrow">@(IsCompleted ? "Final results" : $"Question {Question.Number} results")</p>
-    <h2>@Question.Text</h2>
+    <h2>@((MarkupString)Question.Text)</h2>
     <div class="results-chart">
         @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
         {
@@ -14,7 +14,7 @@
                 </div>
 
                 <div class="result-answer-copy">
-                    <strong>@answer.Text</strong>
+                    <strong>@((MarkupString)answer.Text)</strong>
                     <span class="result-percent">@percentage%</span>
                     @if (answer.IsCorrect)
                     {

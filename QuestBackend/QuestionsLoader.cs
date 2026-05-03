@@ -8,6 +8,8 @@ public class QuestionLoader : IQuestionLoader
         .UseAdvancedExtensions()
         .Build();
 
+    private static readonly string[] BlockHtmlTags = ["<p", "<pre", "<ul", "<ol", "<blockquote", "<h1", "<h2", "<h3", "<h4", "<h5", "<h6", "<table", "<hr"];
+
     public List<Question> LoadQuestions()
     {
         var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
@@ -18,23 +20,40 @@ public class QuestionLoader : IQuestionLoader
 
         return payload.Questions.Select(q => new Question
         {
-            Text = q.Title,
-            Answer1 = q.Options.ElementAtOrDefault(0) ?? string.Empty,
-            Answer2 = q.Options.ElementAtOrDefault(1) ?? string.Empty,
-            Answer3 = q.Options.ElementAtOrDefault(2) ?? string.Empty,
-            Answer4 = q.Options.ElementAtOrDefault(3) ?? string.Empty,
+            Text = ConvertInlineMarkdownToHtml(q.Title),
+            Answer1 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(0) ?? string.Empty),
+            Answer2 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(1) ?? string.Empty),
+            Answer3 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(2) ?? string.Empty),
+            Answer4 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(3) ?? string.Empty),
             CorrectAnswer = q.CorrectAnswer,
-            Explanation = Markdown.ToHtml(q.Explanation, MarkdownPipeline),
+            Explanation = ConvertMarkdownToHtml(q.Explanation),
         }).ToList();
+    }
+
+    private static string ConvertMarkdownToHtml(string markdown) => Markdown.ToHtml(markdown, MarkdownPipeline).Trim();
+
+    private static string ConvertInlineMarkdownToHtml(string markdown)
+    {
+        var html = ConvertMarkdownToHtml(markdown);
+
+        if (!html.StartsWith("<p>", StringComparison.Ordinal) || !html.EndsWith("</p>", StringComparison.Ordinal))
+        {
+            return html;
+        }
+
+        var innerHtml = html[3..^4].Trim();
+
+        return BlockHtmlTags.Any(tag => innerHtml.Contains(tag, StringComparison.OrdinalIgnoreCase))
+            ? html
+            : innerHtml;
     }
 
     private string Questions = """
     questions:
-      - type: interface
-        title: "Una interfície"
+      - title: "Una **interfície**"
         options:
-          - "És un contracte que defineix mètodes i propietats a implementar"
-          - "Es pot instanciar amb new()"
+          - "És un contracte que defineix **mètodes** i propietats a implementar"
+          - "Es pot instanciar amb `new()`"
           - "No pot implementar altres interfícies"
           - ".NET no té interfícies"
         correct_answer: 1
@@ -52,10 +71,9 @@ public class QuestionLoader : IQuestionLoader
           - No es pot instanciar directament.
           - Sí que pot heretar d'altres interfícies.
 
-      - type: abstract_class
-        title: "Una classe abstracta NO pot"
+      - title: "Una classe abstracta **NO** pot"
         options:
-          - "Instanciar-se amb new()"
+          - "Instanciar-se amb `new()`"
           - "Heretar d'altres classes"
           - "Implementar interfícies"
           - "Tenir mètodes abstractes i implementats"
@@ -83,7 +101,6 @@ public class QuestionLoader : IQuestionLoader
 
     private class QuestionYaml
     {
-        public string? Type { get; set; }
         public required string Title { get; set; }
         public required List<string> Options { get; set; }
         public required int CorrectAnswer { get; set; }

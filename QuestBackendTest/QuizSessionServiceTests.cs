@@ -74,7 +74,7 @@ public sealed class QuizSessionServiceTests
         Assert.NotNull(snapshot.CurrentQuestion);
         Assert.Equal(1, snapshot.CurrentQuestion!.Number);
         Assert.Equal(2, snapshot.CurrentQuestion.Total);
-        Assert.Equal("Una interfície", snapshot.CurrentQuestion.Text);
+        Assert.Equal("Una <strong>interfície</strong>", snapshot.CurrentQuestion.Text);
         Assert.Null(snapshot.CurrentQuestion.CorrectAnswer);
         Assert.Equal(0, snapshot.CurrentQuestion.Responses);
         Assert.Equal(1, snapshot.CurrentQuestion.TotalPlayers);
