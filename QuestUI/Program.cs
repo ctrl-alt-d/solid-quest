@@ -37,7 +37,7 @@ app.Use(async (httpContext, next) =>
         && httpContext.Request.Cookies.TryGetValue(QuestAuthCookie.CookieName, out var restoreToken)
         && !string.IsNullOrWhiteSpace(restoreToken))
     {
-        var quizSession = httpContext.RequestServices.GetRequiredService<QuizSessionService>();
+        var quizSession = httpContext.RequestServices.GetRequiredService<IQuizSessionService>();
         if (!quizSession.TryRestoreUser(restoreToken, out _))
         {
             httpContext.Response.Cookies.Delete(QuestAuthCookie.CookieName, QuestAuthCookie.Delete(httpContext));

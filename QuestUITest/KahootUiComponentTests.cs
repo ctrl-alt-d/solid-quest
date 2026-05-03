@@ -129,20 +129,20 @@ public class KahootUiComponentTests : BunitContext
         Responses: answers.Sum(answer => answer.Votes),
         TotalPlayers: 10);
 
-    private QuizSessionService ConfigureHomeServices()
+    private IQuizSessionService ConfigureHomeServices()
     {
         Services.AddSingleton<TimeProvider>(TimeProvider.System);
-        Services.AddSingleton<Users>();
-        Services.AddSingleton<QuestionLoader>();
-        Services.AddSingleton<QuizSessionService>();
+        Services.AddSingleton<IUsers, Users>();
+        Services.AddSingleton<IQuestionLoader, QuestionLoader>();
+        Services.AddSingleton<IQuizSessionService, QuizSessionService>();
         Services.AddSingleton<PlayerSession>();
         Services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
         Services.AddSingleton<CustomAuthStateProvider>();
 
-        return Services.GetRequiredService<QuizSessionService>();
+        return Services.GetRequiredService<IQuizSessionService>();
     }
 
-    private User PreparePlayerView(QuizSessionService quizSession)
+    private User PreparePlayerView(IQuizSessionService quizSession)
     {
         quizSession.TryJoin("admin", isAdmin: true, out _);
         quizSession.TryJoin("Alice", isAdmin: false, out var alice, out _);

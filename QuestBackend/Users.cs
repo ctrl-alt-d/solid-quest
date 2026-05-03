@@ -1,6 +1,6 @@
 ﻿namespace QuestBackend;
 
-public sealed class Users
+public sealed class Users : IUsers
 {
     private readonly Dictionary<string, User> _users = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, User> _usersByRestoreToken = new(StringComparer.Ordinal);

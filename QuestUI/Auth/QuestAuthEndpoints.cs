@@ -9,7 +9,7 @@ public static class QuestAuthEndpoints
 {
     public static IEndpointRouteBuilder MapQuestAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/auth/login", async Task<IResult> (HttpContext httpContext, QuizSessionService quizSession) =>
+        endpoints.MapPost("/auth/login", async Task<IResult> (HttpContext httpContext, IQuizSessionService quizSession) =>
         {
             var form = await httpContext.Request.ReadFormAsync();
             var userName = form["username"].ToString();
@@ -32,7 +32,7 @@ public static class QuestAuthEndpoints
             return Results.Redirect("/");
         }).DisableAntiforgery();
 
-        endpoints.MapPost("/auth/logout", (HttpContext httpContext, QuizSessionService quizSession) =>
+        endpoints.MapPost("/auth/logout", (HttpContext httpContext, IQuizSessionService quizSession) =>
         {
             var restoreToken = httpContext.Request.Cookies[QuestAuthCookie.CookieName];
             if (!string.IsNullOrWhiteSpace(restoreToken))

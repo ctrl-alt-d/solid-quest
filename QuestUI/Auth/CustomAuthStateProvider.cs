@@ -10,11 +10,11 @@ public sealed class CustomAuthStateProvider : AuthenticationStateProvider
     private static readonly AuthenticationState AnonymousState = new(new ClaimsPrincipal(new ClaimsIdentity()));
 
     private readonly PlayerSession _playerSession;
-    private readonly QuizSessionService _quizSession;
+    private readonly IQuizSessionService _quizSession;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private bool _restoreAttempted;
 
-    public CustomAuthStateProvider(PlayerSession playerSession, QuizSessionService quizSession, IHttpContextAccessor httpContextAccessor)
+    public CustomAuthStateProvider(PlayerSession playerSession, IQuizSessionService quizSession, IHttpContextAccessor httpContextAccessor)
     {
         _playerSession = playerSession;
         _quizSession = quizSession;

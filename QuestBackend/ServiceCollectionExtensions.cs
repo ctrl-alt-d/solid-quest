@@ -8,8 +8,8 @@ public static class MyFeatureServiceCollectionExtensions
     {
         return services
             .AddSingleton<TimeProvider>(_ => TimeProvider.System)
-            .AddSingleton<Users, Users>()
-            .AddSingleton<QuestionLoader, QuestionLoader>()
-            .AddSingleton<QuizSessionService, QuizSessionService>();
+            .AddSingleton<IUsers, Users>()
+            .AddSingleton<IQuestionLoader, QuestionLoader>()
+            .AddSingleton<IQuizSessionService, QuizSessionService>();
     }
 }

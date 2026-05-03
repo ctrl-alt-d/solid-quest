@@ -2,7 +2,7 @@
 
 namespace QuestBackend;
 
-public class QuestionLoader
+public class QuestionLoader : IQuestionLoader
 {
     private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()

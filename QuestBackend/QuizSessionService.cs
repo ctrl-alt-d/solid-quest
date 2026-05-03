@@ -1,11 +1,11 @@
 namespace QuestBackend;
 
-public sealed class QuizSessionService
+public sealed class QuizSessionService : IQuizSessionService
 {
     private const int CorrectAnswerPoints = 1;
     private static readonly TimeSpan QuestionDuration = TimeSpan.FromSeconds(30);
 
-    private readonly Users _users;
+    private readonly IUsers _users;
     private readonly IReadOnlyList<Question> _questions;
     private readonly TimeProvider _timeProvider;
     private readonly Lock _lock = new();
@@ -16,7 +16,7 @@ public sealed class QuizSessionService
     private int _currentQuestionIndex = -1;
     private DateTimeOffset? _currentQuestionOpenedAt;
 
-    public QuizSessionService(Users users, QuestionLoader questionLoader, TimeProvider timeProvider)
+    public QuizSessionService(IUsers users, IQuestionLoader questionLoader, TimeProvider timeProvider)
     {
         _users = users;
         _questions = questionLoader.LoadQuestions();
