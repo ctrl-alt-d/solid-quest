@@ -1,0 +1,38 @@
+<section class="card question-card">
+    <div class="question-header">
+        <div>
+            <p class="eyebrow">Question @Question.Number / @Question.Total</p>
+            <h2>@Question.Text</h2>
+        </div>
+        <p class="muted">@Question.Responses / @Question.TotalPlayers answers received</p>
+    </div>
+
+    @if (IsAdmin)
+    {
+        <p class="muted">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
+    }
+    else if (Question.SelectedAnswer is int selectedAnswer)
+    {
+        <p class="success-text">You answered option @selectedAnswer. Waiting for reveal.</p>
+    }
+    else
+    {
+        <div class="answers-grid">
+            @foreach (var answer in Question.Answers)
+            {
+                <button class="answer-button" @onclick="() => OnAnswer.InvokeAsync(answer.Index)">@answer.Text</button>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public QuestionView Question { get; set; } = default!;
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnAnswer { get; set; }
+}

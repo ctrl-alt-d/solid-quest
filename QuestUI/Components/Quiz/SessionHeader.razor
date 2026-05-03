@@ -1,0 +1,23 @@
+<header class="card top-bar">
+    <div>
+        <p class="eyebrow">Connected as</p>
+        <h1>@UserName</h1>
+        @if (IsAdmin)
+        {
+            <span class="badge">admin</span>
+        }
+    </div>
+
+    <button class="secondary-button" @onclick="OnLeave">Leave</button>
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public string UserName { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public EventCallback OnLeave { get; set; }
+}

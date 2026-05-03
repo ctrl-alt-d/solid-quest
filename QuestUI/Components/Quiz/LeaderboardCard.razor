@@ -1,0 +1,24 @@
+<article class="card">
+    <p class="eyebrow">Leaderboard</p>
+    @if (Entries.Count == 0)
+    {
+        <p class="muted">No scores yet.</p>
+    }
+    else
+    {
+        <ol class="leaderboard-list">
+            @foreach (var entry in Entries)
+            {
+                <li>
+                    <span>@entry.UserName</span>
+                    <strong>@entry.Score</strong>
+                </li>
+            }
+        </ol>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LeaderboardEntry> Entries { get; set; } = Array.Empty<LeaderboardEntry>();
+}

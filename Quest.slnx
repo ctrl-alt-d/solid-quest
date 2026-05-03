@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="QuestBackend/QuestBackend.csproj" />
+  <Project Path="QuestBackendTest/QuestBackendTest.csproj" />
   <Project Path="QuestUI/QuestUI.csproj" />
+  <Project Path="QuestUITest/QuestUITest.csproj" />
 </Solution>

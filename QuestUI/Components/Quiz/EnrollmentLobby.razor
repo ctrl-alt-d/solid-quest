@@ -1,0 +1,49 @@
+<section class="grid">
+    <article class="card">
+        <p class="eyebrow">Enrollment</p>
+        <h2>@(Snapshot.PlayerCount == 0 ? "Waiting for players" : $"{Snapshot.PlayerCount} player(s) ready")</h2>
+        <p class="muted">
+            @if (IsAdmin)
+            {
+                <span>Start when everyone has joined.</span>
+            }
+            else
+            {
+                <span>You're in. Wait for admin to start the quiz.</span>
+            }
+        </p>
+
+        @if (IsAdmin)
+        {
+            <button class="primary-button" @onclick="OnStart" disabled="@(!Snapshot.CanStart)">Start session</button>
+        }
+    </article>
+
+    <article class="card">
+        <p class="eyebrow">Players</p>
+        @if (Snapshot.EnrolledPlayers.Count == 0)
+        {
+            <p class="muted">No players enrolled yet.</p>
+        }
+        else
+        {
+            <ul class="player-list">
+                @foreach (var player in Snapshot.EnrolledPlayers)
+                {
+                    <li>@player</li>
+                }
+            </ul>
+        }
+    </article>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public QuizSessionSnapshot Snapshot { get; set; } = default!;
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public EventCallback OnStart { get; set; }
+}

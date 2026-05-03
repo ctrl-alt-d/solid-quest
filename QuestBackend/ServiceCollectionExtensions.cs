@@ -8,6 +8,7 @@ public static class MyFeatureServiceCollectionExtensions
     {
         return services
             .AddSingleton<Users, Users>()
-            .AddSingleton<QuestionLoader, QuestionLoader>();
+            .AddSingleton<QuestionLoader, QuestionLoader>()
+            .AddSingleton<QuizSessionService, QuizSessionService>();
     }
 }

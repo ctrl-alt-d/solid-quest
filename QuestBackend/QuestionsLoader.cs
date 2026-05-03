@@ -24,50 +24,50 @@ public class QuestionLoader
 
     private string Questions = """
     questions:
-    - type: interface
-        title: Una interfície
+      - type: interface
+        title: "Una interfície"
         options:
-        - "És un contracte que defineix mètodes i propietats a implementar"
-        - "Es pot instanciar amb new()"
-        - "No pot implementar altres interfícies"
-        - ".NET no té interfícies"
+          - "És un contracte que defineix mètodes i propietats a implementar"
+          - "Es pot instanciar amb new()"
+          - "No pot implementar altres interfícies"
+          - ".NET no té interfícies"
         correct_answer: 1
         explanation: |
-        En C#, una interfície defineix un contracte.
+          En C#, una interfície defineix un contracte.
 
-        ```c#
-        public interface IUser
-        {
-            void SetPassword(string password);
-            int Edat { get; set; }
-        }
-        ```
+          ```c#
+          public interface IUser
+          {
+              void SetPassword(string password);
+              int Edat { get; set; }
+          }
+          ```
 
-        - No es pot instanciar directament.
-        - Sí que pot heretar d'altres interfícies.
+          - No es pot instanciar directament.
+          - Sí que pot heretar d'altres interfícies.
 
-    - type: abstract_class
-        title: Una classe abstracta NO pot
+      - type: abstract_class
+        title: "Una classe abstracta NO pot"
         options:
-        - "Instanciar-se amb new()"
-        - "Heretar d'altres classes"
-        - "Implementar interfícies"
-        - "Tenir mètodes abstractes i implementats"
+          - "Instanciar-se amb new()"
+          - "Heretar d'altres classes"
+          - "Implementar interfícies"
+          - "Tenir mètodes abstractes i implementats"
         correct_answer: 1
         explanation: |
-        Una classe abstracta no es pot instanciar directament.
+          Una classe abstracta no es pot instanciar directament.
 
-        ```c#
-        public abstract class UserBase : IUser
-        {
-            public abstract void SetPassword(string password);
-            public int Edat { get; set; }
-        }
-        ```
+          ```c#
+          public abstract class UserBase : IUser
+          {
+              public abstract void SetPassword(string password);
+              public int Edat { get; set; }
+          }
+          ```
 
-        - Pot heretar d'una altra classe.
-        - Pot implementar interfícies.
-        - Pot tenir mètodes abstractes i implementats.
+          - Pot heretar d'una altra classe.
+          - Pot implementar interfícies.
+          - Pot tenir mètodes abstractes i implementats.
     """;
 
     private class QuestionsYaml
@@ -77,6 +77,7 @@ public class QuestionLoader
 
     private class QuestionYaml
     {
+        public string? Type { get; set; }
         public required string Title { get; set; }
         public required List<string> Options { get; set; }
         public required int CorrectAnswer { get; set; }

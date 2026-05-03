@@ -1,0 +1,34 @@
+<section class="card auth-card">
+    <div>
+        <p class="eyebrow">Solid Quest</p>
+        <h1>Join the session</h1>
+        <p class="muted">Pick a unique username. Enter <strong>admin</strong> to access moderator controls.</p>
+    </div>
+
+    <form @onsubmit="OnSubmit" @onsubmit:preventDefault>
+        <label class="field-label" for="username">Username</label>
+        <input id="username" class="text-input" value="@UserName" @oninput="HandleUserNameChanged" />
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <p class="error-text">@ErrorMessage</p>
+        }
+        <button class="primary-button" type="submit">Enter</button>
+    </form>
+</section>
+
+@code {
+    [Parameter]
+    public string UserName { get; set; } = string.Empty;
+
+    [Parameter]
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> UserNameChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnSubmit { get; set; }
+
+    private Task HandleUserNameChanged(ChangeEventArgs args)
+        => UserNameChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+}

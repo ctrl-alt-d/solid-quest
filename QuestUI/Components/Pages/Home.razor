@@ -1,7 +1,167 @@
 ﻿@page "/"
+@using System.Security.Claims
+@implements IDisposable
+@inject CustomAuthStateProvider AuthProvider
+@inject QuizSessionService QuizSession
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Solid Quest</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="page-shell">
+    @if (!_isAuthenticated)
+    {
+        <LoginForm UserName="@_loginUserName"
+                   UserNameChanged="@(value => _loginUserName = value)"
+                   ErrorMessage="@_loginError"
+                   OnSubmit="HandleLoginAsync" />
+    }
+    else
+    {
+        var snapshot = QuizSession.GetSnapshot(_userName);
+        var currentQuestion = snapshot.CurrentQuestion;
 
-Welcome to your new app.
+        <SessionHeader UserName="@_userName" IsAdmin="@_isAdmin" OnLeave="HandleLogoutAsync" />
+
+        @if (!string.IsNullOrWhiteSpace(_actionError))
+        {
+            <section class="card error-card">
+                @_actionError
+            </section>
+        }
+
+        @switch (snapshot.Stage)
+        {
+            case QuizStage.Enrollment:
+                <EnrollmentLobby Snapshot="@snapshot" IsAdmin="@_isAdmin" OnStart="HandleStartAsync" />
+                break;
+
+            case QuizStage.QuestionOpen when currentQuestion is not null:
+                <QuestionCard Question="@currentQuestion" IsAdmin="@_isAdmin" OnAnswer="HandleAnswerAsync" />
+                break;
+
+            case QuizStage.QuestionResults when currentQuestion is not null:
+            case QuizStage.Completed when currentQuestion is not null:
+                <section class="grid results-grid">
+                    <ResultsCard Question="@currentQuestion"
+                                 IsAdmin="@_isAdmin"
+                                 IsCompleted="@(snapshot.Stage == QuizStage.Completed)"
+                                 OnAdvance="HandleAdvanceAsync" />
+
+                    <LeaderboardCard Entries="@snapshot.Leaderboard" />
+                </section>
+                break;
+        }
+    }
+</div>
+
+@code {
+    private string _loginUserName = string.Empty;
+    private string _loginError = string.Empty;
+    private string _actionError = string.Empty;
+    private string _userName = string.Empty;
+    private bool _isAuthenticated;
+    private bool _isAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthProvider.AuthenticationStateChanged += HandleAuthenticationStateChanged;
+        QuizSession.StateChanged += HandleQuizSessionChanged;
+
+        var authenticationState = await AuthProvider.GetAuthenticationStateAsync();
+        UpdateUser(authenticationState.User);
+    }
+
+    public void Dispose()
+    {
+        AuthProvider.AuthenticationStateChanged -= HandleAuthenticationStateChanged;
+        QuizSession.StateChanged -= HandleQuizSessionChanged;
+    }
+
+    private async Task HandleLoginAsync()
+    {
+        var loginResult = await AuthProvider.LoginAsync(_loginUserName);
+        if (!loginResult.Succeeded)
+        {
+            _loginError = loginResult.ErrorMessage;
+            return;
+        }
+
+        _loginError = string.Empty;
+        _actionError = string.Empty;
+        _loginUserName = string.Empty;
+    }
+
+    private async Task HandleLogoutAsync()
+    {
+        await AuthProvider.LogoutAsync();
+        _actionError = string.Empty;
+    }
+
+    private Task HandleStartAsync()
+    {
+        if (!QuizSession.TryStart(_userName, out var errorMessage))
+        {
+            _actionError = errorMessage;
+        }
+        else
+        {
+            _actionError = string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task HandleAnswerAsync(int answerIndex)
+    {
+        if (!QuizSession.TrySubmitAnswer(_userName, answerIndex, out var errorMessage))
+        {
+            _actionError = errorMessage;
+        }
+        else
+        {
+            _actionError = string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task HandleAdvanceAsync()
+    {
+        if (!QuizSession.TryAdvance(_userName, out var errorMessage))
+        {
+            _actionError = errorMessage;
+        }
+        else
+        {
+            _actionError = string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void HandleAuthenticationStateChanged(Task<AuthenticationState> authenticationStateTask)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            var authenticationState = await authenticationStateTask;
+            UpdateUser(authenticationState.User);
+            StateHasChanged();
+        });
+    }
+
+    private void HandleQuizSessionChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateUser(ClaimsPrincipal user)
+    {
+        _isAuthenticated = user.Identity?.IsAuthenticated == true;
+        _userName = user.Identity?.Name ?? string.Empty;
+        _isAdmin = user.IsInRole("Admin");
+
+        if (!_isAuthenticated)
+        {
+            _actionError = string.Empty;
+        }
+    }
+}
