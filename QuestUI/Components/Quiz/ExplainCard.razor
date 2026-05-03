@@ -1,0 +1,27 @@
+<article class="card">
+    <div class="explanation-box">
+        <p class="eyebrow">Explanation</p>
+        <div class="explanation-text">@((MarkupString)Question.Explanation)</div>
+    </div>
+
+    @if (IsAdmin && !IsCompleted)
+    {
+        <button class="primary-button" @onclick="OnAdvance">
+            @(Question.Number == Question.Total ? "Show final leaderboard" : "Next question")
+        </button>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public QuestionView Question { get; set; } = default!;
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public bool IsCompleted { get; set; }
+
+    [Parameter]
+    public EventCallback OnAdvance { get; set; }
+}

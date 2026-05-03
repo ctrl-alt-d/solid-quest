@@ -1,7 +1,13 @@
-﻿namespace QuestBackend;
+﻿using Markdig;
+
+namespace QuestBackend;
 
 public class QuestionLoader
 {
+    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .Build();
+
     public List<Question> LoadQuestions()
     {
         var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
@@ -18,7 +24,7 @@ public class QuestionLoader
             Answer3 = q.Options.ElementAtOrDefault(2) ?? string.Empty,
             Answer4 = q.Options.ElementAtOrDefault(3) ?? string.Empty,
             CorrectAnswer = q.CorrectAnswer,
-            Explanation = q.Explanation,
+            Explanation = Markdown.ToHtml(q.Explanation, MarkdownPipeline),
         }).ToList();
     }
 

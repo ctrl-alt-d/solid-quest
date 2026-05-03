@@ -1,0 +1,49 @@
+<article class="card">
+    <p class="eyebrow">@(IsCompleted ? "Final results" : $"Question {Question.Number} results")</p>
+    <h2>@Question.Text</h2>
+    <div class="results-chart">
+        @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+        {
+            var percentage = GetVotePercentage(answer);
+
+            <div class="result-bar-card @GetAnswerClass(answer.Index) @(answer.IsCorrect ? "correct-result" : string.Empty)">
+                <span class="result-votes">@answer.Votes</span>
+
+                <div class="result-bar-track" aria-hidden="true">
+                    <div class="result-bar-fill" style="height: @percentage%;"></div>
+                </div>
+
+                <div class="result-answer-copy">
+                    <strong>@answer.Text</strong>
+                    <span class="result-percent">@percentage%</span>
+                    @if (answer.IsCorrect)
+                    {
+                        <span class="correct-label">Correct</span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public QuestionView Question { get; set; } = default!;
+
+    [Parameter]
+    public bool IsCompleted { get; set; }
+
+    private int TotalVotes => Question.Answers.Sum(answer => answer.Votes);
+
+    private int GetVotePercentage(AnswerOptionView answer)
+    {
+        if (TotalVotes <= 0)
+        {
+            return 0;
+        }
+
+        return (int)Math.Round(answer.Votes * 100d / TotalVotes, MidpointRounding.AwayFromZero);
+    }
+
+    private static string GetAnswerClass(int answerIndex) => $"answer-{answerIndex}";
+}

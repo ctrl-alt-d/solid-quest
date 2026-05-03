@@ -18,9 +18,14 @@
     else
     {
         <div class="answers-grid">
-            @foreach (var answer in Question.Answers)
+            @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
             {
-                <button class="answer-button" @onclick="() => OnAnswer.InvokeAsync(answer.Index)">@answer.Text</button>
+                <button class="answer-button @GetAnswerClass(answer.Index)"
+                        type="button"
+                        @onclick="() => OnAnswer.InvokeAsync(answer.Index)">
+                    <span class="answer-option-label">Option @answer.Index</span>
+                    <span>@answer.Text</span>
+                </button>
             }
         </div>
     }
@@ -35,4 +40,6 @@
 
     [Parameter]
     public EventCallback<int> OnAnswer { get; set; }
+
+    private static string GetAnswerClass(int answerIndex) => $"answer-{answerIndex}";
 }

@@ -40,13 +40,16 @@
 
             case QuizStage.QuestionResults when currentQuestion is not null:
             case QuizStage.Completed when currentQuestion is not null:
-                <section class="grid results-grid">
-                    <ResultsCard Question="@currentQuestion"
+                <section class="results-stack">
+                    <ResultCard Question="@currentQuestion"
+                                IsCompleted="@(snapshot.Stage == QuizStage.Completed)" />
+
+                    <LeaderboardCard Entries="@snapshot.Leaderboard" />
+
+                    <ExplainCard Question="@currentQuestion"
                                  IsAdmin="@_isAdmin"
                                  IsCompleted="@(snapshot.Stage == QuizStage.Completed)"
                                  OnAdvance="HandleAdvanceAsync" />
-
-                    <LeaderboardCard Entries="@snapshot.Leaderboard" />
                 </section>
                 break;
         }
