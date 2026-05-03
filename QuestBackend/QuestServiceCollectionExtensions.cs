@@ -2,7 +2,7 @@
 
 namespace QuestBackend;
 
-public static class MyFeatureServiceCollectionExtensions
+public static class QuestServiceCollectionExtensions
 {
     public static IServiceCollection AddMyFeature(this IServiceCollection services)
     {
