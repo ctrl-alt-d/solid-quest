@@ -7,6 +7,7 @@ public static class MyFeatureServiceCollectionExtensions
     public static IServiceCollection AddMyFeature(this IServiceCollection services)
     {
         return services
+            .AddHttpClient()
             .AddSingleton<TimeProvider>(_ => TimeProvider.System)
             .AddSingleton<IUsers, Users>()
             .AddSingleton<IQuestionLoader, QuestionLoader>()

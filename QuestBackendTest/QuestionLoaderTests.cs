@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text;
 using QuestBackend;
 
 namespace QuestBackendTest;
@@ -5,13 +7,15 @@ namespace QuestBackendTest;
 public sealed class QuestionLoaderTests
 {
     [Fact]
-    public void LoadQuestions_ConvertsMarkdownQuestionTextAndAnswersToHtml()
+    public async Task LoadSampleQuestionsAsync_ConvertsMarkdownQuestionTextAndAnswersToHtml()
     {
-        var questions = new QuestionLoader().LoadQuestions();
+        var result = await CreateLoader().LoadSampleQuestionsAsync();
+        var questions = result.Questions;
 
         var firstQuestion = questions[0];
         var secondQuestion = questions[1];
 
+        Assert.True(result.Success);
         Assert.Equal("Una <strong>interfície</strong>", firstQuestion.Text);
         Assert.Contains("<strong>mètodes</strong>", firstQuestion.Answer1);
         Assert.Contains("<code>new()</code>", firstQuestion.Answer2);
@@ -20,34 +24,126 @@ public sealed class QuestionLoaderTests
     }
 
     [Fact]
-    public void LoadQuestions_ConvertsMarkdownExplanationToHtml()
+    public async Task LoadSampleQuestionsAsync_ConvertsMarkdownExplanationToHtml()
     {
-        var questions = new QuestionLoader().LoadQuestions();
+        var result = await CreateLoader().LoadSampleQuestionsAsync();
+        var explanation = result.Questions[0].Explanation;
 
-        var explanation = questions[0].Explanation;
-
+        Assert.True(result.Success);
         Assert.Contains("<p>En C#, una interfície defineix un contracte.</p>", explanation);
         Assert.Contains("<ul>", explanation);
         Assert.DoesNotContain("```c#", explanation);
     }
 
     [Fact]
-    public void LoadQuestions_DoesNotRequireTypeFieldInYaml()
+    public async Task LoadSampleQuestionsAsync_DoesNotRequireTypeFieldInYaml()
     {
-        var questions = new QuestionLoader().LoadQuestions();
+        var result = await CreateLoader().LoadSampleQuestionsAsync();
 
-        Assert.Equal(2, questions.Count);
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Questions.Count);
     }
 
     [Fact]
-    public void LoadQuestions_RendersCodeFencesAsPreformattedHtml()
+    public async Task LoadSampleQuestionsAsync_RendersCodeFencesAsPreformattedHtml()
     {
-        var questions = new QuestionLoader().LoadQuestions();
+        var result = await CreateLoader().LoadSampleQuestionsAsync();
+        var explanation = result.Questions[0].Explanation;
 
-        var explanation = questions[0].Explanation;
-
+        Assert.True(result.Success);
         Assert.Contains("<pre><code class=\"language-c#\">", explanation);
         Assert.Contains("public interface IUser", explanation);
         Assert.Contains("</code></pre>", explanation);
+    }
+
+    [Fact]
+    public async Task LoadQuestionsFromUrlAsync_LoadsQuestions_WhenHttp200ReturnsYaml()
+    {
+        var yaml = """
+            questions:
+              - title: "Remote question"
+                options:
+                  - "One"
+                  - "Two"
+                  - "Three"
+                  - "Four"
+                correct_answer: 2
+                explanation: "Because **two**."
+            """;
+
+        var loader = CreateLoader(HttpStatusCode.OK, yaml);
+
+        var result = await loader.LoadQuestionsFromUrlAsync("https://example.com/questions.yaml");
+
+        Assert.True(result.Success);
+        Assert.Single(result.Questions);
+        Assert.Equal("Remote question", result.Questions[0].Text);
+        Assert.Contains("<strong>two</strong>", result.Questions[0].Explanation);
+    }
+
+    [Fact]
+    public async Task LoadQuestionsFromUrlAsync_ReturnsFriendlyError_WhenUrlIsInvalid()
+    {
+        var result = await CreateLoader().LoadQuestionsFromUrlAsync("not-a-url");
+
+        Assert.False(result.Success);
+        Assert.Equal("Enter a valid absolute HTTP or HTTPS URL.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task LoadQuestionsFromUrlAsync_ReturnsFriendlyError_WhenHttpStatusIsNot200()
+    {
+        var loader = CreateLoader(HttpStatusCode.NotFound, "questions: []");
+
+        var result = await loader.LoadQuestionsFromUrlAsync("https://example.com/questions.yaml");
+
+        Assert.False(result.Success);
+        Assert.Contains("Expected HTTP 200 OK", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task LoadQuestionsFromUrlAsync_ReturnsFriendlyError_WhenYamlIsInvalid()
+    {
+        var loader = CreateLoader(HttpStatusCode.OK, "questions: [");
+
+        var result = await loader.LoadQuestionsFromUrlAsync("https://example.com/questions.yaml");
+
+        Assert.False(result.Success);
+        Assert.Equal("Questions YAML could not be parsed.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task LoadQuestionsFromUrlAsync_ReturnsFriendlyError_WhenQuestionsAreInvalid()
+    {
+        var yaml = """
+            questions:
+              - title: ""
+                options:
+                  - "One"
+                  - "Two"
+                  - "Three"
+                  - "Four"
+                correct_answer: 2
+                explanation: "Because."
+            """;
+
+        var loader = CreateLoader(HttpStatusCode.OK, yaml);
+
+        var result = await loader.LoadQuestionsFromUrlAsync("https://example.com/questions.yaml");
+
+        Assert.False(result.Success);
+        Assert.Equal("Question 1 must define non-empty text.", result.ErrorMessage);
+    }
+
+    private static QuestionLoader CreateLoader(HttpStatusCode statusCode = HttpStatusCode.OK, string responseBody = "questions: []")
+        => new(new HttpClient(new StubHttpMessageHandler(statusCode, responseBody)));
+
+    private sealed class StubHttpMessageHandler(HttpStatusCode statusCode, string responseBody) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(responseBody, Encoding.UTF8, "application/yaml")
+            });
     }
 }

@@ -2,5 +2,6 @@ namespace QuestBackend;
 
 public interface IQuestionLoader
 {
-    List<Question> LoadQuestions();
+    Task<QuestionLoadResult> LoadSampleQuestionsAsync(CancellationToken cancellationToken = default);
+    Task<QuestionLoadResult> LoadQuestionsFromUrlAsync(string url, CancellationToken cancellationToken = default);
 }

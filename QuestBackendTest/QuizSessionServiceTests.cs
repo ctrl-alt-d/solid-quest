@@ -59,17 +59,17 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public void TryStart_OpensFirstQuestion_ForAdmin()
+    public async Task TryStartAsync_OpensFirstQuestion_ForAdmin()
     {
         var session = CreateSession();
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var started = session.TryStart("admin", out var errorMessage);
+        var result = await session.TryStartAsync("admin", null);
         var snapshot = session.GetSnapshot("Alice");
 
-        Assert.True(started);
-        Assert.Equal(string.Empty, errorMessage);
+        Assert.True(result.Success);
+        Assert.Equal(string.Empty, result.ErrorMessage);
         Assert.Equal(QuizStage.QuestionOpen, snapshot.Stage);
         Assert.NotNull(snapshot.CurrentQuestion);
         Assert.Equal(1, snapshot.CurrentQuestion!.Number);
@@ -81,13 +81,13 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public void TrySubmitAnswer_RevealsResults_WhenAllPlayersAnswer()
+    public async Task TrySubmitAnswer_RevealsResults_WhenAllPlayersAnswer()
     {
         var session = CreateSession();
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        session.TryStart("admin", out _);
+        await session.TryStartAsync("admin", null);
 
         var aliceAnswered = session.TrySubmitAnswer("Alice", 1, out var aliceError);
         var openSnapshot = session.GetSnapshot("Alice");
@@ -110,13 +110,13 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public void ResultsSnapshot_UpdatesLeaderboard_ByCorrectAnswers()
+    public async Task ResultsSnapshot_UpdatesLeaderboard_ByCorrectAnswers()
     {
         var session = CreateSession();
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        session.TryStart("admin", out _);
+        await session.TryStartAsync("admin", null);
         session.TrySubmitAnswer("Alice", 1, out _);
         session.TrySubmitAnswer("Bob", 2, out _);
 
@@ -131,13 +131,13 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public void TrySubmitAnswer_AccumulatesElapsedMilliseconds_OnAcceptedAnswers()
+    public async Task TrySubmitAnswer_AccumulatesElapsedMilliseconds_OnAcceptedAnswers()
     {
         var timeProvider = new ManualTimeProvider();
         var session = CreateSession(timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
-        session.TryStart("admin", out _);
+        await session.TryStartAsync("admin", null);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(1200));
         var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
@@ -154,14 +154,14 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public void TrySubmitAnswer_DuplicateAnswer_DoesNotAccumulateTimeTwice()
+    public async Task TrySubmitAnswer_DuplicateAnswer_DoesNotAccumulateTimeTwice()
     {
         var timeProvider = new ManualTimeProvider();
         var session = CreateSession(timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        session.TryStart("admin", out _);
+        await session.TryStartAsync("admin", null);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(500));
         var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
@@ -177,14 +177,14 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public void Leaderboard_BreaksScoreTies_ByLowerTotalMilliseconds()
+    public async Task Leaderboard_BreaksScoreTies_ByLowerTotalMilliseconds()
     {
         var timeProvider = new ManualTimeProvider();
         var session = CreateSession(timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        session.TryStart("admin", out _);
+        await session.TryStartAsync("admin", null);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(400));
         session.TrySubmitAnswer("Alice", 1, out _);
@@ -200,7 +200,91 @@ public sealed class QuizSessionServiceTests
             snapshot.Leaderboard);
     }
 
-    private static QuizSessionService CreateSession(TimeProvider? timeProvider = null) => new(new Users(), new QuestionLoader(), timeProvider ?? TimeProvider.System);
+    [Fact]
+    public async Task TryStartAsync_ReturnsLoadError_WhenQuestionSourceFails()
+    {
+        var session = CreateSession(questionLoader: new StubQuestionLoader(QuestionLoadResult.Failed("Bad YAML.")));
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+
+        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml");
+
+        Assert.False(result.Success);
+        Assert.Equal("Bad YAML.", result.ErrorMessage);
+        Assert.Equal(QuizStage.Enrollment, session.GetSnapshot().Stage);
+    }
+
+    [Fact]
+    public async Task TryStartAsync_UsesUrlLoader_WhenUrlProvided()
+    {
+        var loadedQuestions = new[]
+        {
+            new Question
+            {
+                Text = "Remote question",
+                Answer1 = "A",
+                Answer2 = "B",
+                Answer3 = "C",
+                Answer4 = "D",
+                CorrectAnswer = 2,
+                Explanation = "Why"
+            }
+        };
+
+        var loader = new StubQuestionLoader(QuestionLoadResult.Succeeded(loadedQuestions));
+        var session = CreateSession(questionLoader: loader);
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+
+        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml");
+        var snapshot = session.GetSnapshot("Alice");
+
+        Assert.True(result.Success);
+        Assert.Equal("https://example.com/questions.yaml", loader.LoadedUrl);
+        Assert.Equal("Remote question", snapshot.CurrentQuestion!.Text);
+    }
+
+    private static QuizSessionService CreateSession(TimeProvider? timeProvider = null, IQuestionLoader? questionLoader = null)
+        => new(new Users(), questionLoader ?? new StubQuestionLoader(CreateSampleQuestionLoadResult()), timeProvider ?? TimeProvider.System);
+
+    private static QuestionLoadResult CreateSampleQuestionLoadResult()
+        => QuestionLoadResult.Succeeded(
+        [
+            new Question
+            {
+                Text = "Una <strong>interfície</strong>",
+                Answer1 = "És un contracte que defineix <strong>mètodes</strong> i propietats a implementar",
+                Answer2 = "Es pot instanciar amb <code>new()</code>",
+                Answer3 = "No pot implementar altres interfícies",
+                Answer4 = ".NET no té interfícies",
+                CorrectAnswer = 1,
+                Explanation = "<p>Explicació 1</p>"
+            },
+            new Question
+            {
+                Text = "Una classe abstracta <strong>NO</strong> pot",
+                Answer1 = "Instanciar-se amb <code>new()</code>",
+                Answer2 = "Heretar d'altres classes",
+                Answer3 = "Implementar interfícies",
+                Answer4 = "Tenir mètodes abstractes i implementats",
+                CorrectAnswer = 1,
+                Explanation = "<p>Explicació 2</p>"
+            }
+        ]);
+
+    private sealed class StubQuestionLoader(QuestionLoadResult result) : IQuestionLoader
+    {
+        public string? LoadedUrl { get; private set; }
+
+        public Task<QuestionLoadResult> LoadSampleQuestionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(result);
+
+        public Task<QuestionLoadResult> LoadQuestionsFromUrlAsync(string url, CancellationToken cancellationToken = default)
+        {
+            LoadedUrl = url;
+            return Task.FromResult(result);
+        }
+    }
 
     private sealed class ManualTimeProvider : TimeProvider
     {

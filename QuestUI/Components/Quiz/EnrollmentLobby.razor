@@ -15,6 +15,16 @@
 
         @if (IsAdmin)
         {
+            <label class="field-stack" for="questions-url">
+                <span class="eyebrow">Questions URL</span>
+                <input id="questions-url"
+                       type="url"
+                       placeholder="https://example.com/questions.yaml"
+                       value="@QuestionsUrl"
+                       @oninput="HandleUrlChanged" />
+            </label>
+
+            <p class="muted">Leave it empty to use the sample questions.</p>
             <button class="primary-button" @onclick="OnStart" disabled="@(!Snapshot.CanStart)">Start session</button>
         }
     </article>
@@ -46,4 +56,13 @@
 
     [Parameter]
     public EventCallback OnStart { get; set; }
+
+    [Parameter]
+    public string QuestionsUrl { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> QuestionsUrlChanged { get; set; }
+
+    private Task HandleUrlChanged(ChangeEventArgs args)
+        => QuestionsUrlChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
 }

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http;
@@ -164,7 +166,7 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
-    public void Home_AdminStart_ClickingStartCallsTryStart()
+    public async Task Home_AdminStart_ClickingStartCallsTryStartAsync()
     {
         var quizSession = Substitute.For<IQuizSessionService>();
         var admin = CreateUser("admin", isAdmin: true);
@@ -173,18 +175,45 @@ public class QuestUiComponentTests : BunitContext
 
         quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
         quizSession
-            .TryStart(admin.UserName, out Arg.Any<string>())
-            .Returns(callInfo =>
-            {
-                callInfo[1] = string.Empty;
-                return true;
-            });
+            .TryStartAsync(admin.UserName, string.Empty, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(QuizActionResult.Succeeded()));
 
         var cut = Render<Home>();
 
         cut.Find("button.primary-button").Click();
 
-        quizSession.Received(1).TryStart(admin.UserName, out Arg.Any<string>());
+        await quizSession.Received(1).TryStartAsync(admin.UserName, string.Empty, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Home_AdminStart_WithQuestionsUrl_CallsTryStartAsyncWithUrl()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("admin", isAdmin: true);
+        ConfigureHomeServices(quizSession);
+        AuthenticateAs(admin);
+
+        quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
+        quizSession
+            .TryStartAsync(admin.UserName, "https://example.com/questions.yaml", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(QuizActionResult.Succeeded()));
+
+        var cut = Render<Home>();
+
+        cut.Find("#questions-url").Input("https://example.com/questions.yaml");
+        cut.Find("button.primary-button").Click();
+
+        await quizSession.Received(1).TryStartAsync(admin.UserName, "https://example.com/questions.yaml", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void EnrollmentLobby_NonAdmin_DoesNotRenderQuestionsUrlInput()
+    {
+        var cut = Render<EnrollmentLobby>(parameters => parameters
+            .Add(component => component.Snapshot, CreateEnrollmentSnapshot(canStart: false, enrolledPlayers: ["Alice"]))
+            .Add(component => component.IsAdmin, false));
+
+        cut.FindAll("#questions-url").Should().BeEmpty();
     }
 
     [Fact]

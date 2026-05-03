@@ -6,10 +6,11 @@ public sealed class QuizSessionService : IQuizSessionService
     private static readonly TimeSpan QuestionDuration = TimeSpan.FromSeconds(30);
 
     private readonly IUsers _users;
-    private readonly IReadOnlyList<Question> _questions;
+    private readonly IQuestionLoader _questionLoader;
     private readonly TimeProvider _timeProvider;
     private readonly Lock _lock = new();
 
+    private IReadOnlyList<Question> _questions = [];
     private Dictionary<string, int> _answers = new(StringComparer.OrdinalIgnoreCase);
     private Timer? _questionTimer;
     private QuizStage _stage = QuizStage.Enrollment;
@@ -19,9 +20,8 @@ public sealed class QuizSessionService : IQuizSessionService
     public QuizSessionService(IUsers users, IQuestionLoader questionLoader, TimeProvider timeProvider)
     {
         _users = users;
-        _questions = questionLoader.LoadQuestions();
+        _questionLoader = questionLoader;
         _timeProvider = timeProvider;
-        ValidateQuestions(_questions);
     }
 
     public event Action? StateChanged;
@@ -141,36 +141,55 @@ public sealed class QuizSessionService : IQuizSessionService
         Leave(user.UserName);
     }
 
-    public bool TryStart(string userName, out string errorMessage)
+    public async Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
             if (!IsAdmin(userName))
             {
-                errorMessage = "Only admin can start the session.";
-                return false;
+                return QuizActionResult.Failed("Only admin can start the session.");
             }
 
             if (_stage != QuizStage.Enrollment)
             {
-                errorMessage = "The session has already started.";
-                return false;
+                return QuizActionResult.Failed("The session has already started.");
             }
 
             if (_users.PlayerCount == 0)
             {
-                errorMessage = "At least one player is required to start.";
-                return false;
+                return QuizActionResult.Failed("At least one player is required to start.");
+            }
+        }
+
+        var questionLoadResult = string.IsNullOrWhiteSpace(questionsUrl)
+            ? await _questionLoader.LoadSampleQuestionsAsync(cancellationToken)
+            : await _questionLoader.LoadQuestionsFromUrlAsync(questionsUrl.Trim(), cancellationToken);
+
+        if (!questionLoadResult.Success)
+        {
+            return QuizActionResult.Failed(questionLoadResult.ErrorMessage);
+        }
+
+        lock (_lock)
+        {
+            if (_stage != QuizStage.Enrollment)
+            {
+                return QuizActionResult.Failed("The session has already started.");
             }
 
+            if (_users.PlayerCount == 0)
+            {
+                return QuizActionResult.Failed("At least one player is required to start.");
+            }
+
+            _questions = questionLoadResult.Questions;
             _users.ResetScores();
             _currentQuestionIndex = 0;
             OpenQuestionCore();
         }
 
         NotifyStateChanged();
-        errorMessage = string.Empty;
-        return true;
+        return QuizActionResult.Succeeded();
     }
 
     public bool TrySubmitAnswer(string userName, int answerIndex, out string errorMessage)
@@ -377,25 +396,6 @@ public sealed class QuizSessionService : IQuizSessionService
     };
 
     private static string Normalize(string userName) => userName.Trim();
-
-    private static void ValidateQuestions(IReadOnlyList<Question> questions)
-    {
-        if (questions.Count == 0)
-        {
-            throw new InvalidOperationException("At least one question is required.");
-        }
-
-        if (questions.Any(question => question.CorrectAnswer is < 1 or > 4))
-        {
-            throw new InvalidOperationException("Each question must define a correct answer between 1 and 4.");
-        }
-
-        if (questions.Any(question => new[] { question.Answer1, question.Answer2, question.Answer3, question.Answer4 }
-                .Any(string.IsNullOrWhiteSpace)))
-        {
-            throw new InvalidOperationException("Each question must define exactly four answers.");
-        }
-    }
 
     private void NotifyStateChanged() => StateChanged?.Invoke();
 }

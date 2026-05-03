@@ -1,33 +1,103 @@
-﻿using Markdig;
+﻿using System.Net;
+using Markdig;
+using YamlDotNet.Core;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace QuestBackend;
 
 public class QuestionLoader : IQuestionLoader
 {
+    private static readonly TimeSpan DownloadTimeout = TimeSpan.FromSeconds(10);
     private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
         .Build();
 
     private static readonly string[] BlockHtmlTags = ["<p", "<pre", "<ul", "<ol", "<blockquote", "<h1", "<h2", "<h3", "<h4", "<h5", "<h6", "<table", "<hr"];
 
-    public List<Question> LoadQuestions()
+    private readonly HttpClient _httpClient;
+
+    public QuestionLoader(HttpClient httpClient)
     {
-        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
-            .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.UnderscoredNamingConvention.Instance)
+        _httpClient = httpClient;
+    }
+
+    public Task<QuestionLoadResult> LoadSampleQuestionsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(LoadFromYaml(Questions));
+
+    public async Task<QuestionLoadResult> LoadQuestionsFromUrlAsync(string url, CancellationToken cancellationToken = default)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return QuestionLoadResult.Failed("Enter a valid absolute HTTP or HTTPS URL.");
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(DownloadTimeout);
+
+        try
+        {
+            using var response = await _httpClient.GetAsync(uri, timeoutCts.Token);
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                return QuestionLoadResult.Failed($"The question URL returned {(int)response.StatusCode} {response.ReasonPhrase}. Expected HTTP 200 OK.");
+            }
+
+            var yaml = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+            return LoadFromYaml(yaml);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return QuestionLoadResult.Failed("Timed out while downloading questions from the URL.");
+        }
+        catch (HttpRequestException)
+        {
+            return QuestionLoadResult.Failed("Could not download questions from the URL. Check the address and try again.");
+        }
+    }
+
+    private static QuestionLoadResult LoadFromYaml(string yaml)
+    {
+        var deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build();
 
-        var payload = deserializer.Deserialize<QuestionsYaml>(Questions);
+        QuestionsYaml? payload;
 
-        return payload.Questions.Select(q => new Question
+        try
+        {
+            payload = deserializer.Deserialize<QuestionsYaml>(yaml);
+        }
+        catch (YamlException)
+        {
+            return QuestionLoadResult.Failed("Questions YAML could not be parsed.");
+        }
+
+        if (payload?.Questions is null)
+        {
+            return QuestionLoadResult.Failed("Questions YAML must define a questions list.");
+        }
+
+        var validationError = ValidateQuestions(payload.Questions);
+        if (validationError is not null)
+        {
+            return QuestionLoadResult.Failed(validationError);
+        }
+
+        var questions = payload.Questions.Select(q => new Question
         {
             Text = ConvertInlineMarkdownToHtml(q.Title),
-            Answer1 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(0) ?? string.Empty),
-            Answer2 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(1) ?? string.Empty),
-            Answer3 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(2) ?? string.Empty),
-            Answer4 = ConvertInlineMarkdownToHtml(q.Options.ElementAtOrDefault(3) ?? string.Empty),
+            Answer1 = ConvertInlineMarkdownToHtml(q.Options[0]),
+            Answer2 = ConvertInlineMarkdownToHtml(q.Options[1]),
+            Answer3 = ConvertInlineMarkdownToHtml(q.Options[2]),
+            Answer4 = ConvertInlineMarkdownToHtml(q.Options[3]),
             CorrectAnswer = q.CorrectAnswer,
             Explanation = ConvertMarkdownToHtml(q.Explanation),
         }).ToList();
+
+        return QuestionLoadResult.Succeeded(questions);
     }
 
     private static string ConvertMarkdownToHtml(string markdown) => Markdown.ToHtml(markdown, MarkdownPipeline).Trim();
@@ -48,7 +118,48 @@ public class QuestionLoader : IQuestionLoader
             : innerHtml;
     }
 
-    private string Questions = """
+    private static string? ValidateQuestions(IReadOnlyList<QuestionYaml> questions)
+    {
+        if (questions.Count == 0)
+        {
+            return "At least one question is required.";
+        }
+
+        for (var index = 0; index < questions.Count; index++)
+        {
+            var question = questions[index];
+            var questionNumber = index + 1;
+
+            if (string.IsNullOrWhiteSpace(question.Title))
+            {
+                return $"Question {questionNumber} must define non-empty text.";
+            }
+
+            if (question.Options is null || question.Options.Count != 4)
+            {
+                return $"Question {questionNumber} must define exactly 4 options.";
+            }
+
+            if (question.Options.Any(string.IsNullOrWhiteSpace))
+            {
+                return $"Question {questionNumber} must define non-empty options.";
+            }
+
+            if (question.CorrectAnswer is < 1 or > 4)
+            {
+                return $"Question {questionNumber} must define a correct answer between 1 and 4.";
+            }
+
+            if (string.IsNullOrWhiteSpace(question.Explanation))
+            {
+                return $"Question {questionNumber} must define a non-empty explanation.";
+            }
+        }
+
+        return null;
+    }
+
+    private const string Questions = """
     questions:
       - title: "Una **interfície**"
         options:
@@ -106,5 +217,4 @@ public class QuestionLoader : IQuestionLoader
         public required int CorrectAnswer { get; set; }
         public required string Explanation { get; set; }
     }
-
 }

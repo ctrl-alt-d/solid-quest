@@ -30,7 +30,11 @@
         @switch (snapshot.Stage)
         {
             case QuizStage.Enrollment:
-                <EnrollmentLobby Snapshot="@snapshot" IsAdmin="@_isAdmin" OnStart="HandleStartAsync" />
+                <EnrollmentLobby Snapshot="@snapshot"
+                                 IsAdmin="@_isAdmin"
+                                 QuestionsUrl="@_questionsUrl"
+                                 QuestionsUrlChanged="HandleQuestionsUrlChanged"
+                                 OnStart="HandleStartAsync" />
                 break;
 
             case QuizStage.QuestionOpen when currentQuestion is not null:
@@ -62,6 +66,7 @@
     private string _loginUserName = string.Empty;
     private string _loginError = string.Empty;
     private string _actionError = string.Empty;
+    private string _questionsUrl = string.Empty;
     private string _userName = string.Empty;
     private bool _isAuthenticated;
     private bool _isAdmin;
@@ -86,17 +91,23 @@
         QuizSession.StateChanged -= HandleQuizSessionChanged;
     }
 
-    private Task HandleStartAsync()
+    private async Task HandleStartAsync()
     {
-        if (!QuizSession.TryStart(_userName, out var errorMessage))
+        var result = await QuizSession.TryStartAsync(_userName, _questionsUrl);
+
+        if (!result.Success)
         {
-            _actionError = errorMessage;
+            _actionError = result.ErrorMessage;
         }
         else
         {
             _actionError = string.Empty;
         }
+    }
 
+    private Task HandleQuestionsUrlChanged(string questionsUrl)
+    {
+        _questionsUrl = questionsUrl;
         return Task.CompletedTask;
     }
 
