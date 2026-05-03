@@ -7,17 +7,20 @@ public sealed class QuizSessionService
 
     private readonly Users _users;
     private readonly IReadOnlyList<Question> _questions;
+    private readonly TimeProvider _timeProvider;
     private readonly Lock _lock = new();
 
     private Dictionary<string, int> _answers = new(StringComparer.OrdinalIgnoreCase);
     private Timer? _questionTimer;
     private QuizStage _stage = QuizStage.Enrollment;
     private int _currentQuestionIndex = -1;
+    private DateTimeOffset? _currentQuestionOpenedAt;
 
-    public QuizSessionService(Users users, QuestionLoader questionLoader)
+    public QuizSessionService(Users users, QuestionLoader questionLoader, TimeProvider timeProvider)
     {
         _users = users;
         _questions = questionLoader.LoadQuestions();
+        _timeProvider = timeProvider;
         ValidateQuestions(_questions);
     }
 
@@ -179,6 +182,7 @@ public sealed class QuizSessionService
             }
 
             _answers[normalizedUserName] = answerIndex;
+            _users.AddAnswerTime(normalizedUserName, GetElapsedMillisecondsForCurrentQuestion());
 
             if (ShouldRevealResults())
             {
@@ -266,6 +270,7 @@ public sealed class QuizSessionService
         StopTimerCore();
         _stage = QuizStage.QuestionOpen;
         _answers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        _currentQuestionOpenedAt = _timeProvider.GetUtcNow();
         _questionTimer = new Timer(_ => RevealResultsFromTimer(), null, QuestionDuration, Timeout.InfiniteTimeSpan);
     }
 
@@ -317,10 +322,22 @@ public sealed class QuizSessionService
 
     private bool IsAdmin(string userName) => Normalize(userName).Equals("admin", StringComparison.Ordinal);
 
+    private long GetElapsedMillisecondsForCurrentQuestion()
+    {
+        if (_currentQuestionOpenedAt is null)
+        {
+            return 0;
+        }
+
+        var elapsed = _timeProvider.GetUtcNow() - _currentQuestionOpenedAt.Value;
+        return Math.Max(0L, (long)elapsed.TotalMilliseconds);
+    }
+
     private void StopTimerCore()
     {
         _questionTimer?.Dispose();
         _questionTimer = null;
+        _currentQuestionOpenedAt = null;
     }
 
     private static string GetAnswerText(Question question, int answerIndex) => answerIndex switch

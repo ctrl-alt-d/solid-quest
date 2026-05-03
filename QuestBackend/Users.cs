@@ -21,6 +21,7 @@ public sealed class Users
             {
                 UserName = userName,
                 Score = 0,
+                TotalMilliseconds = 0,
                 IsAdmin = isAdmin
             };
         }
@@ -88,8 +89,9 @@ public sealed class Users
             return _users.Values
                 .Where(user => !user.IsAdmin)
                 .OrderByDescending(user => user.Score)
+                .ThenBy(user => user.TotalMilliseconds)
                 .ThenBy(user => user.UserName, StringComparer.OrdinalIgnoreCase)
-                .Select(user => new LeaderboardEntry(user.UserName, user.Score))
+                .Select(user => new LeaderboardEntry(user.UserName, user.Score, user.TotalMilliseconds))
                 .ToList();
         }
     }
@@ -101,6 +103,7 @@ public sealed class Users
             foreach (var user in _users.Values.Where(user => !user.IsAdmin))
             {
                 user.Score = 0;
+                user.TotalMilliseconds = 0;
             }
         }
     }
@@ -112,6 +115,17 @@ public sealed class Users
             if (_users.TryGetValue(Normalize(userName), out var user) && !user.IsAdmin)
             {
                 user.Score += points;
+            }
+        }
+    }
+
+    public void AddAnswerTime(string userName, long elapsedMilliseconds)
+    {
+        lock (_lock)
+        {
+            if (_users.TryGetValue(Normalize(userName), out var user) && !user.IsAdmin)
+            {
+                user.TotalMilliseconds += elapsedMilliseconds;
             }
         }
     }

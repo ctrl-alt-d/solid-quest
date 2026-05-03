@@ -93,11 +93,90 @@ public sealed class QuizSessionServiceTests
 
         Assert.Equal(
             [
-                new LeaderboardEntry("Alice", 1),
-                new LeaderboardEntry("Bob", 0)
+                new LeaderboardEntry("Alice", 1, 0),
+                new LeaderboardEntry("Bob", 0, 0)
             ],
             snapshot.Leaderboard);
     }
 
-    private static QuizSessionService CreateSession() => new(new Users(), new QuestionLoader());
+    [Fact]
+    public void TrySubmitAnswer_AccumulatesElapsedMilliseconds_OnAcceptedAnswers()
+    {
+        var timeProvider = new ManualTimeProvider();
+        var session = CreateSession(timeProvider);
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+        session.TryStart("admin", out _);
+
+        timeProvider.Advance(TimeSpan.FromMilliseconds(1200));
+        var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
+        session.TryAdvance("admin", out _);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(800));
+        var secondAccepted = session.TrySubmitAnswer("Alice", 2, out var secondError);
+        var snapshot = session.GetSnapshot();
+
+        Assert.True(firstAccepted);
+        Assert.Equal(string.Empty, firstError);
+        Assert.True(secondAccepted);
+        Assert.Equal(string.Empty, secondError);
+        Assert.Equal(2000, Assert.Single(snapshot.Leaderboard).TotalMilliseconds);
+    }
+
+    [Fact]
+    public void TrySubmitAnswer_DuplicateAnswer_DoesNotAccumulateTimeTwice()
+    {
+        var timeProvider = new ManualTimeProvider();
+        var session = CreateSession(timeProvider);
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+        session.TryJoin("Bob", isAdmin: false, out _);
+        session.TryStart("admin", out _);
+
+        timeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(700));
+        var duplicateAccepted = session.TrySubmitAnswer("Alice", 2, out var duplicateError);
+        var snapshot = session.GetSnapshot();
+
+        Assert.True(firstAccepted);
+        Assert.Equal(string.Empty, firstError);
+        Assert.False(duplicateAccepted);
+        Assert.Equal("You already answered this question.", duplicateError);
+        Assert.Equal(500, snapshot.Leaderboard.Single(entry => entry.UserName == "Alice").TotalMilliseconds);
+    }
+
+    [Fact]
+    public void Leaderboard_BreaksScoreTies_ByLowerTotalMilliseconds()
+    {
+        var timeProvider = new ManualTimeProvider();
+        var session = CreateSession(timeProvider);
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+        session.TryJoin("Bob", isAdmin: false, out _);
+        session.TryStart("admin", out _);
+
+        timeProvider.Advance(TimeSpan.FromMilliseconds(400));
+        session.TrySubmitAnswer("Alice", 1, out _);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        session.TrySubmitAnswer("Bob", 1, out _);
+        var snapshot = session.GetSnapshot();
+
+        Assert.Equal(
+            [
+                new LeaderboardEntry("Alice", 1, 400),
+                new LeaderboardEntry("Bob", 1, 900)
+            ],
+            snapshot.Leaderboard);
+    }
+
+    private static QuizSessionService CreateSession(TimeProvider? timeProvider = null) => new(new Users(), new QuestionLoader(), timeProvider ?? TimeProvider.System);
+
+    private sealed class ManualTimeProvider : TimeProvider
+    {
+        private DateTimeOffset _utcNow = DateTimeOffset.UnixEpoch;
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        public void Advance(TimeSpan by) => _utcNow = _utcNow.Add(by);
+    }
 }
