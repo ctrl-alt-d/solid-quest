@@ -1,6 +1,10 @@
+using System;
 using System.Linq;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Http;
 using QuestBackend;
+using QuestUI.Auth;
+using QuestUI.Components.Pages;
 using QuestUI.Components.Quiz;
 
 namespace QuestUITest;
@@ -76,6 +80,44 @@ public class KahootUiComponentTests : BunitContext
         Assert.DoesNotContain("&lt;code&gt;", explanation.InnerHtml);
     }
 
+    [Fact]
+    public void Home_QuestionResults_ShowsResultLeaderboardAndExplanation()
+    {
+        var quizSession = ConfigureHomeServices();
+        var alice = PreparePlayerView(quizSession);
+
+        quizSession.TryStart("admin", out _);
+        quizSession.TrySubmitAnswer("Alice", 1, out _);
+
+        var cut = Render<Home>();
+
+        Assert.Single(cut.FindAll(".results-chart"));
+        Assert.Single(cut.FindAll(".leaderboard-list"));
+        Assert.Single(cut.FindAll(".explanation-box"));
+        Assert.Contains("Question 1 results", cut.Markup);
+        Assert.Contains(alice.UserName, cut.Markup);
+    }
+
+    [Fact]
+    public void Home_Completed_ShowsOnlyLeaderboard()
+    {
+        var quizSession = ConfigureHomeServices();
+        PreparePlayerView(quizSession);
+
+        quizSession.TryStart("admin", out _);
+        quizSession.TrySubmitAnswer("Alice", 1, out _);
+        quizSession.TryAdvance("admin", out _);
+        quizSession.TrySubmitAnswer("Alice", 1, out _);
+        quizSession.TryAdvance("admin", out _);
+
+        var cut = Render<Home>();
+
+        Assert.Single(cut.FindAll(".leaderboard-list"));
+        Assert.Empty(cut.FindAll(".results-chart"));
+        Assert.Empty(cut.FindAll(".explanation-box"));
+        Assert.DoesNotContain("Una classe abstracta NO pot", cut.Markup);
+    }
+
     private static QuestionView CreateQuestion(params AnswerOptionView[] answers) => new(
         Number: 1,
         Total: 10,
@@ -86,4 +128,27 @@ public class KahootUiComponentTests : BunitContext
         CorrectAnswer: 2,
         Responses: answers.Sum(answer => answer.Votes),
         TotalPlayers: 10);
+
+    private QuizSessionService ConfigureHomeServices()
+    {
+        Services.AddSingleton<TimeProvider>(TimeProvider.System);
+        Services.AddSingleton<Users>();
+        Services.AddSingleton<QuestionLoader>();
+        Services.AddSingleton<QuizSessionService>();
+        Services.AddSingleton<PlayerSession>();
+        Services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
+        Services.AddSingleton<CustomAuthStateProvider>();
+
+        return Services.GetRequiredService<QuizSessionService>();
+    }
+
+    private User PreparePlayerView(QuizSessionService quizSession)
+    {
+        quizSession.TryJoin("admin", isAdmin: true, out _);
+        quizSession.TryJoin("Alice", isAdmin: false, out var alice, out _);
+
+        Services.GetRequiredService<PlayerSession>().Set(alice!.UserName, alice.IsAdmin, alice.RestoreToken);
+
+        return alice;
+    }
 }
