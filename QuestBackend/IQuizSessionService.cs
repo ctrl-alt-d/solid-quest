@@ -10,7 +10,7 @@ public interface IQuizSessionService
     bool TryRestoreUser(string restoreToken, out User? user);
     void Leave(string userName);
     void LeaveByRestoreToken(string restoreToken);
-    Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, CancellationToken cancellationToken = default);
+    Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, int questionTimeoutSeconds, CancellationToken cancellationToken = default);
     bool TrySubmitAnswer(string userName, int answerIndex, out string errorMessage);
     bool TryAdvance(string userName, out string errorMessage);
 }

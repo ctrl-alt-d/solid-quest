@@ -11,4 +11,6 @@ public sealed record QuestionView(
     int? SelectedAnswer,
     int? CorrectAnswer,
     int Responses,
-    int TotalPlayers);
+    int TotalPlayers,
+    int? TimeoutSeconds,
+    DateTimeOffset? DeadlineUtc);

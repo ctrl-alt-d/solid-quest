@@ -3,7 +3,6 @@ namespace QuestBackend;
 public sealed class QuizSessionService : IQuizSessionService
 {
     private const int CorrectAnswerPoints = 1;
-    private static readonly TimeSpan QuestionDuration = TimeSpan.FromSeconds(30);
 
     private readonly IUsers _users;
     private readonly IQuestionLoader _questionLoader;
@@ -16,6 +15,7 @@ public sealed class QuizSessionService : IQuizSessionService
     private QuizStage _stage = QuizStage.Enrollment;
     private int _currentQuestionIndex = -1;
     private DateTimeOffset? _currentQuestionOpenedAt;
+    private int _questionTimeoutSeconds = QuestionTimeoutSettings.DefaultSeconds;
 
     public QuizSessionService(IUsers users, IQuestionLoader questionLoader, TimeProvider timeProvider)
     {
@@ -141,8 +141,13 @@ public sealed class QuizSessionService : IQuizSessionService
         Leave(user.UserName);
     }
 
-    public async Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, CancellationToken cancellationToken = default)
+    public async Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, int questionTimeoutSeconds, CancellationToken cancellationToken = default)
     {
+        if (!QuestionTimeoutSettings.IsValid(questionTimeoutSeconds))
+        {
+            return QuizActionResult.Failed($"Question timeout must be between {QuestionTimeoutSettings.MinSeconds} and {QuestionTimeoutSettings.MaxSeconds} seconds.");
+        }
+
         lock (_lock)
         {
             if (!IsAdmin(userName))
@@ -183,6 +188,7 @@ public sealed class QuizSessionService : IQuizSessionService
             }
 
             _questions = questionLoadResult.Questions;
+            _questionTimeoutSeconds = questionTimeoutSeconds;
             _users.ResetScores();
             _currentQuestionIndex = 0;
             OpenQuestionCore();
@@ -308,7 +314,9 @@ public sealed class QuizSessionService : IQuizSessionService
             selectedAnswer,
             revealAnswers ? question.CorrectAnswer : null,
             _answers.Count,
-            totalPlayers);
+            totalPlayers,
+            _stage == QuizStage.QuestionOpen ? _questionTimeoutSeconds : null,
+            GetCurrentQuestionDeadlineUtc());
     }
 
     private void OpenQuestionCore()
@@ -317,7 +325,11 @@ public sealed class QuizSessionService : IQuizSessionService
         _stage = QuizStage.QuestionOpen;
         _answers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         _currentQuestionOpenedAt = _timeProvider.GetUtcNow();
-        _questionTimer = new Timer(_ => RevealResultsFromTimer(), null, QuestionDuration, Timeout.InfiniteTimeSpan);
+        _questionTimer = new Timer(
+            _ => RevealResultsFromTimer(),
+            null,
+            TimeSpan.FromSeconds(_questionTimeoutSeconds),
+            Timeout.InfiniteTimeSpan);
     }
 
     private void RevealResultsFromTimer()
@@ -378,6 +390,11 @@ public sealed class QuizSessionService : IQuizSessionService
         var elapsed = _timeProvider.GetUtcNow() - _currentQuestionOpenedAt.Value;
         return Math.Max(0L, (long)elapsed.TotalMilliseconds);
     }
+
+    private DateTimeOffset? GetCurrentQuestionDeadlineUtc()
+        => _stage == QuizStage.QuestionOpen && _currentQuestionOpenedAt is not null
+            ? _currentQuestionOpenedAt.Value.AddSeconds(_questionTimeoutSeconds)
+            : null;
 
     private void StopTimerCore()
     {

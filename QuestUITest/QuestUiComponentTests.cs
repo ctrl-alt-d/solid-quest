@@ -61,6 +61,27 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
+    public void QuestionCard_RendersCountdown_WhenDeadlineIsPresent()
+    {
+        var question = CreateQuestion(
+            new AnswerOptionView(1, "Red", 0, false),
+            new AnswerOptionView(2, "Blue", 0, true),
+            new AnswerOptionView(3, "Green", 0, false),
+            new AnswerOptionView(4, "Yellow", 0, false)) with
+        {
+            TimeoutSeconds = QuestionTimeoutSettings.DefaultSeconds,
+            DeadlineUtc = DateTimeOffset.UtcNow.AddSeconds(25)
+        };
+
+        var cut = Render<QuestionCard>(parameters => parameters
+            .Add(component => component.Question, question)
+            .Add(component => component.OnAnswer, EventCallback.Factory.Create<int>(this, _ => { })));
+
+        cut.Markup.Should().Contain("left");
+        cut.Find(".countdown-text").TextContent.Should().Contain("left");
+    }
+
+    [Fact]
     public void ResultCardRendersBarChartWithVoteCountsAndCorrectAnswer()
     {
         var question = CreateQuestion(
@@ -175,14 +196,14 @@ public class QuestUiComponentTests : BunitContext
 
         quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
         quizSession
-            .TryStartAsync(admin.UserName, string.Empty, Arg.Any<CancellationToken>())
+            .TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(QuizActionResult.Succeeded()));
 
         var cut = Render<Home>();
 
         cut.Find("button.primary-button").Click();
 
-        await quizSession.Received(1).TryStartAsync(admin.UserName, string.Empty, Arg.Any<CancellationToken>());
+        await quizSession.Received(1).TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -195,15 +216,16 @@ public class QuestUiComponentTests : BunitContext
 
         quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
         quizSession
-            .TryStartAsync(admin.UserName, "https://example.com/questions.yaml", Arg.Any<CancellationToken>())
+            .TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(QuizActionResult.Succeeded()));
 
         var cut = Render<Home>();
 
         cut.Find("#questions-url").Input("https://example.com/questions.yaml");
+        cut.Find("#question-timeout-seconds").Input("45");
         cut.Find("button.primary-button").Click();
 
-        await quizSession.Received(1).TryStartAsync(admin.UserName, "https://example.com/questions.yaml", Arg.Any<CancellationToken>());
+        await quizSession.Received(1).TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -214,6 +236,7 @@ public class QuestUiComponentTests : BunitContext
             .Add(component => component.IsAdmin, false));
 
         cut.FindAll("#questions-url").Should().BeEmpty();
+        cut.FindAll("#question-timeout-seconds").Should().BeEmpty();
     }
 
     [Fact]
@@ -249,7 +272,9 @@ public class QuestUiComponentTests : BunitContext
         SelectedAnswer: null,
         CorrectAnswer: 2,
         Responses: answers.Sum(answer => answer.Votes),
-        TotalPlayers: 10);
+        TotalPlayers: 10,
+        TimeoutSeconds: null,
+        DeadlineUtc: null);
 
     private void ConfigureHomeServices(IQuizSessionService quizSession)
     {

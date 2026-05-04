@@ -65,7 +65,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("admin", null);
+        var result = await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
         var snapshot = session.GetSnapshot("Alice");
 
         Assert.True(result.Success);
@@ -78,6 +78,8 @@ public sealed class QuizSessionServiceTests
         Assert.Null(snapshot.CurrentQuestion.CorrectAnswer);
         Assert.Equal(0, snapshot.CurrentQuestion.Responses);
         Assert.Equal(1, snapshot.CurrentQuestion.TotalPlayers);
+        Assert.Equal(QuestionTimeoutSettings.DefaultSeconds, snapshot.CurrentQuestion.TimeoutSeconds);
+        Assert.Equal(DateTimeOffset.UnixEpoch.AddSeconds(QuestionTimeoutSettings.DefaultSeconds), snapshot.CurrentQuestion.DeadlineUtc);
     }
 
     [Fact]
@@ -87,7 +89,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null);
+        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
 
         var aliceAnswered = session.TrySubmitAnswer("Alice", 1, out var aliceError);
         var openSnapshot = session.GetSnapshot("Alice");
@@ -116,7 +118,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null);
+        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
         session.TrySubmitAnswer("Alice", 1, out _);
         session.TrySubmitAnswer("Bob", 2, out _);
 
@@ -137,7 +139,7 @@ public sealed class QuizSessionServiceTests
         var session = CreateSession(timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null);
+        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(1200));
         var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
@@ -161,7 +163,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null);
+        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(500));
         var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
@@ -184,7 +186,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null);
+        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(400));
         session.TrySubmitAnswer("Alice", 1, out _);
@@ -207,7 +209,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml");
+        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml", QuestionTimeoutSettings.DefaultSeconds);
 
         Assert.False(result.Success);
         Assert.Equal("Bad YAML.", result.ErrorMessage);
@@ -236,7 +238,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml");
+        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml", QuestionTimeoutSettings.DefaultSeconds);
         var snapshot = session.GetSnapshot("Alice");
 
         Assert.True(result.Success);
@@ -244,8 +246,58 @@ public sealed class QuizSessionServiceTests
         Assert.Equal("Remote question", snapshot.CurrentQuestion!.Text);
     }
 
+    [Fact]
+    public async Task TryStartAsync_UsesCustomTimeout_ForCurrentQuest()
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+
+        var result = await session.TryStartAsync("admin", null, 45);
+        var snapshot = session.GetSnapshot("Alice");
+
+        Assert.True(result.Success);
+        Assert.Equal(45, snapshot.CurrentQuestion!.TimeoutSeconds);
+        Assert.Equal(DateTimeOffset.UnixEpoch.AddSeconds(45), snapshot.CurrentQuestion.DeadlineUtc);
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(301)]
+    public async Task TryStartAsync_RejectsInvalidTimeout(int timeoutSeconds)
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+
+        var result = await session.TryStartAsync("admin", null, timeoutSeconds);
+
+        Assert.False(result.Success);
+        Assert.Equal($"Question timeout must be between {QuestionTimeoutSettings.MinSeconds} and {QuestionTimeoutSettings.MaxSeconds} seconds.", result.ErrorMessage);
+        Assert.Equal(QuizStage.Enrollment, session.GetSnapshot().Stage);
+    }
+
+    [Fact]
+    public async Task TryStartAsync_RevealsResults_WhenCustomTimeoutExpires()
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+
+        var started = await session.TryStartAsync("admin", null, QuestionTimeoutSettings.MinSeconds);
+
+        Assert.True(started.Success);
+
+        await Task.Delay(TimeSpan.FromSeconds(QuestionTimeoutSettings.MinSeconds + 1));
+
+        var snapshot = session.GetSnapshot("Alice");
+        Assert.Equal(QuizStage.QuestionResults, snapshot.Stage);
+        Assert.Null(snapshot.CurrentQuestion!.TimeoutSeconds);
+        Assert.Null(snapshot.CurrentQuestion.DeadlineUtc);
+    }
+
     private static QuizSessionService CreateSession(TimeProvider? timeProvider = null, IQuestionLoader? questionLoader = null)
-        => new(new Users(), questionLoader ?? new StubQuestionLoader(CreateSampleQuestionLoadResult()), timeProvider ?? TimeProvider.System);
+        => new(new Users(), questionLoader ?? new StubQuestionLoader(CreateSampleQuestionLoadResult()), timeProvider ?? new ManualTimeProvider());
 
     private static QuestionLoadResult CreateSampleQuestionLoadResult()
         => QuestionLoadResult.Succeeded(

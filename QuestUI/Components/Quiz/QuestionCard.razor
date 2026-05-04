@@ -1,10 +1,19 @@
+@using System.Globalization
+@implements IDisposable
+
 <section class="card question-card">
     <div class="question-header">
         <div>
             <p class="eyebrow">Question @Question.Number / @Question.Total</p>
             <h2>@((MarkupString)Question.Text)</h2>
         </div>
-        <p class="muted">@Question.Responses / @Question.TotalPlayers answers received</p>
+        <div>
+            <p class="muted">@Question.Responses / @Question.TotalPlayers answers received</p>
+            @if (GetRemainingSeconds() is int remainingSeconds)
+            {
+                <p class="eyebrow countdown-text">@remainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
+            }
+        </div>
     </div>
 
     @if (IsAdmin)
@@ -32,6 +41,8 @@
 </section>
 
 @code {
+    private Timer? _countdownTimer;
+
     [Parameter, EditorRequired]
     public QuestionView Question { get; set; } = default!;
 
@@ -41,5 +52,39 @@
     [Parameter]
     public EventCallback<int> OnAnswer { get; set; }
 
+    protected override void OnParametersSet()
+    {
+        if (Question.DeadlineUtc is null)
+        {
+            StopCountdown();
+            return;
+        }
+
+        _countdownTimer ??= new Timer(
+            _ => _ = InvokeAsync(StateHasChanged),
+            null,
+            TimeSpan.Zero,
+            TimeSpan.FromSeconds(1));
+    }
+
+    public void Dispose() => StopCountdown();
+
     private static string GetAnswerClass(int answerIndex) => $"answer-{answerIndex}";
+
+    private int? GetRemainingSeconds()
+    {
+        if (Question.DeadlineUtc is null)
+        {
+            return null;
+        }
+
+        var remaining = Question.DeadlineUtc.Value - DateTimeOffset.UtcNow;
+        return Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+    }
+
+    private void StopCountdown()
+    {
+        _countdownTimer?.Dispose();
+        _countdownTimer = null;
+    }
 }

@@ -1,5 +1,5 @@
-<section class="grid">
-    <article class="card">
+<section class="grid enrollment-layout">
+    <article class="card enrollment-card">
         <p class="eyebrow">Enrollment</p>
         <h2>@(Snapshot.PlayerCount == 0 ? "Waiting for players" : $"{Snapshot.PlayerCount} player(s) ready")</h2>
         <p class="muted">
@@ -15,29 +15,57 @@
 
         @if (IsAdmin)
         {
-            <label class="field-stack" for="questions-url">
-                <span class="eyebrow">Questions URL</span>
-                <input id="questions-url"
-                       type="url"
-                       placeholder="https://example.com/questions.yaml"
-                       value="@QuestionsUrl"
-                       @oninput="HandleUrlChanged" />
-            </label>
-
-            <p class="muted">Leave it empty to use the sample questions.</p>
+            <div class="lobby-message-stack">
+                <p class="muted">Leave the URL empty to use sample questions. Timeout applies only to this quest.</p>
+            </div>
             <button class="primary-button" @onclick="OnStart" disabled="@(!Snapshot.CanStart)">Start session</button>
         }
     </article>
 
-    <article class="card">
+    @if (IsAdmin)
+    {
+        <article class="card settings-card">
+            <p class="eyebrow">Settings</p>
+            <div class="settings-stack">
+                <label class="field-stack field-stack-wide" for="questions-url">
+                    <span class="field-stack-label">Questions URL</span>
+                    <input id="questions-url"
+                           class="text-input lobby-input"
+                           type="url"
+                           placeholder="https://example.com/questions.yaml"
+                           value="@QuestionsUrl"
+                           @oninput="HandleUrlChanged" />
+                </label>
+
+                <label class="field-stack" for="question-timeout-seconds">
+                    <span class="field-stack-label">Answer timeout (seconds)</span>
+                    <input id="question-timeout-seconds"
+                           class="text-input lobby-input timeout-input"
+                           type="number"
+                           min="@QuestionTimeoutSettings.MinSeconds"
+                           max="@QuestionTimeoutSettings.MaxSeconds"
+                           step="1"
+                           value="@QuestionTimeoutSeconds"
+                           @oninput="HandleTimeoutChanged" />
+                </label>
+            </div>
+        </article>
+    }
+
+    <article class="card players-card">
         <p class="eyebrow">Players</p>
+        <div class="players-header">
+            <h3>@Snapshot.PlayerCount enrolled</h3>
+            <span class="badge">@Snapshot.PlayerCount total</span>
+        </div>
+
         @if (Snapshot.EnrolledPlayers.Count == 0)
         {
             <p class="muted">No players enrolled yet.</p>
         }
         else
         {
-            <ul class="player-list">
+            <ul class="player-list player-chip-grid">
                 @foreach (var player in Snapshot.EnrolledPlayers)
                 {
                     <li>@player</li>
@@ -63,6 +91,17 @@
     [Parameter]
     public EventCallback<string> QuestionsUrlChanged { get; set; }
 
+    [Parameter]
+    public int QuestionTimeoutSeconds { get; set; } = QuestionTimeoutSettings.DefaultSeconds;
+
+    [Parameter]
+    public EventCallback<int> QuestionTimeoutSecondsChanged { get; set; }
+
     private Task HandleUrlChanged(ChangeEventArgs args)
         => QuestionsUrlChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+
+    private Task HandleTimeoutChanged(ChangeEventArgs args)
+        => QuestionTimeoutSecondsChanged.InvokeAsync(int.TryParse(args.Value?.ToString(), out var timeoutSeconds)
+            ? timeoutSeconds
+            : QuestionTimeoutSeconds);
 }
