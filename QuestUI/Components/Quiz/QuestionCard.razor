@@ -8,7 +8,6 @@
             <h2>@((MarkupString)Question.Text)</h2>
         </div>
         <div>
-            <p class="muted">@Question.Responses / @Question.TotalPlayers answers received</p>
             @if (GetRemainingSeconds() is int remainingSeconds)
             {
                 <p class="eyebrow countdown-text">@remainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
