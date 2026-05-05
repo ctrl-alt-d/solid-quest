@@ -201,13 +201,14 @@ public class QuestUiComponentTests : BunitContext
 
         cut.FindAll(".results-chart").Should().ContainSingle();
         cut.FindAll(".leaderboard-list").Should().ContainSingle();
+        cut.FindAll(".winner-podium").Should().BeEmpty();
         cut.FindAll(".explanation-box").Should().ContainSingle();
         cut.Markup.Should().Contain("Question 1 results");
         cut.Markup.Should().Contain(alice.UserName);
     }
 
     [Fact]
-    public void Home_Completed_ShowsOnlyLeaderboard()
+    public void Home_Completed_ShowsPodiumAndLeaderboard()
     {
         var quizSession = Substitute.For<IQuizSessionService>();
         var alice = CreateUser("Alice");
@@ -218,10 +219,54 @@ public class QuestUiComponentTests : BunitContext
 
         var cut = Render<Home>();
 
+        cut.FindAll(".winner-podium").Should().ContainSingle();
         cut.FindAll(".leaderboard-list").Should().ContainSingle();
+        cut.Markup.Should().Contain("Champions podium");
         cut.FindAll(".results-chart").Should().BeEmpty();
         cut.FindAll(".explanation-box").Should().BeEmpty();
         cut.Markup.Should().NotContain("Una classe abstracta NO pot");
+    }
+
+    [Fact]
+    public void WinnerPodium_RendersTopEntriesInOlympicOrder()
+    {
+        var cut = Render<WinnerPodium>(parameters => parameters
+            .Add(component => component.Entries,
+                [
+                    new LeaderboardEntry("Ada", 8, 1200),
+                    new LeaderboardEntry("Linus", 6, 1500),
+                    new LeaderboardEntry("Grace", 4, 2200),
+                    new LeaderboardEntry("Margaret", 2, 3000)
+                ]));
+
+        var podiumSlots = cut.FindAll(".podium-slot");
+
+        podiumSlots.Should().HaveCount(3);
+        podiumSlots[0].ClassList.Should().Contain("podium-rank-2");
+        podiumSlots[0].TextContent.Should().Contain("Linus");
+        podiumSlots[1].ClassList.Should().Contain("podium-rank-1");
+        podiumSlots[1].TextContent.Should().Contain("Ada");
+        podiumSlots[2].ClassList.Should().Contain("podium-rank-3");
+        podiumSlots[2].TextContent.Should().Contain("Grace");
+        cut.Markup.Should().NotContain("Margaret");
+    }
+
+    [Fact]
+    public void WinnerPodium_HandlesFewerThanThreeEntries()
+    {
+        var cut = Render<WinnerPodium>(parameters => parameters
+            .Add(component => component.Entries,
+                [
+                    new LeaderboardEntry("Ada", 8, 1200),
+                    new LeaderboardEntry("Linus", 6, 1500)
+                ]));
+
+        var podiumSlots = cut.FindAll(".podium-slot");
+
+        podiumSlots.Should().HaveCount(2);
+        podiumSlots[0].ClassList.Should().Contain("podium-rank-2");
+        podiumSlots[1].ClassList.Should().Contain("podium-rank-1");
+        cut.Markup.Should().NotContain("podium-rank-3");
     }
 
     [Fact]

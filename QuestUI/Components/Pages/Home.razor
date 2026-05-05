@@ -58,7 +58,10 @@
                 break;
 
             case QuizStage.Completed:
-                <LeaderboardCard Entries="@snapshot.Leaderboard" />
+                <section class="results-stack">
+                    <WinnerPodium Entries="@snapshot.Leaderboard" />
+                    <LeaderboardCard Entries="@snapshot.Leaderboard" />
+                </section>
                 break;
         }
     }

@@ -160,6 +160,7 @@ public class QuestionLoader : IQuestionLoader
     }
 
     private const string Questions = """
+    title: "Alguns conceptes bàsics"
     questions:
       - title: "Una **interfície**"
         options:
@@ -207,6 +208,7 @@ public class QuestionLoader : IQuestionLoader
 
     private class QuestionsYaml
     {
+        public string? Title { get; set; }
         public required List<QuestionYaml> Questions { get; set; }
     }
 

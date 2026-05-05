@@ -1,0 +1,54 @@
+<article class="card winner-podium">
+    <p class="eyebrow">Champions podium</p>
+    @if (_podiumEntries.Count == 0)
+    {
+        <p class="muted">No winners yet.</p>
+    }
+    else
+    {
+        <div class="podium-grid" role="list" aria-label="Top 3 players">
+            @foreach (var winner in _podiumEntries)
+            {
+                <section class="podium-slot podium-rank-@winner.Rank" role="listitem">
+                    <span class="podium-medal">#@winner.Rank</span>
+                    <strong class="podium-name">@winner.Entry.UserName</strong>
+                    <span class="podium-score">@winner.Entry.Score pts</span>
+                    @if (winner.Entry.TotalMilliseconds > 0)
+                    {
+                        <span class="podium-time">@FormatTime(winner.Entry.TotalMilliseconds)</span>
+                    }
+                </section>
+            }
+        </div>
+    }
+</article>
+
+@code {
+    private static readonly int[] DisplayOrder = [2, 1, 3];
+
+    private IReadOnlyList<PodiumWinner> _podiumEntries = Array.Empty<PodiumWinner>();
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LeaderboardEntry> Entries { get; set; } = Array.Empty<LeaderboardEntry>();
+
+    protected override void OnParametersSet()
+    {
+        var winnersByRank = Entries
+            .Take(3)
+            .Select((entry, index) => new PodiumWinner(index + 1, entry))
+            .ToDictionary(winner => winner.Rank);
+
+        _podiumEntries = DisplayOrder
+            .Where(winnersByRank.ContainsKey)
+            .Select(rank => winnersByRank[rank])
+            .ToArray();
+    }
+
+    private static string FormatTime(long totalMilliseconds)
+    {
+        var duration = TimeSpan.FromMilliseconds(totalMilliseconds);
+        return $"{duration.TotalSeconds:0.00}s";
+    }
+
+    private sealed record PodiumWinner(int Rank, LeaderboardEntry Entry);
+}
