@@ -8,9 +8,20 @@
             <h2>@((MarkupString)Question.Text)</h2>
         </div>
         <div>
-            @if (GetRemainingSeconds() is int remainingSeconds)
+            @if (GetCountdownState() is { } countdown)
             {
-                <p class="eyebrow countdown-text">@remainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
+                <div class="countdown-stack">
+                    <p class="eyebrow countdown-text">@countdown.RemainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
+                    <div class="countdown-progress"
+                         role="progressbar"
+                         aria-label="Remaining answer time"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         aria-valuenow="@countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)">
+                        <div class="countdown-progress-fill @countdown.ProgressClass"
+                             style="width: @countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)%"></div>
+                    </div>
+                </div>
             }
         </div>
     </div>
@@ -70,20 +81,35 @@
 
     private static string GetAnswerClass(int answerIndex) => $"answer-{answerIndex}";
 
-    private int? GetRemainingSeconds()
+    private CountdownState? GetCountdownState()
     {
-        if (Question.DeadlineUtc is null)
+        if (Question.DeadlineUtc is null || Question.TimeoutSeconds is null || Question.TimeoutSeconds <= 0)
         {
             return null;
         }
 
         var remaining = Question.DeadlineUtc.Value - DateTimeOffset.UtcNow;
-        return Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+        var remainingSeconds = Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+        var progressPercent = Math.Clamp((remaining.TotalSeconds / Question.TimeoutSeconds.Value) * 100d, 0d, 100d);
+
+        return new CountdownState(
+            remainingSeconds,
+            progressPercent,
+            GetProgressClass(progressPercent));
     }
+
+    private static string GetProgressClass(double progressPercent) => progressPercent switch
+    {
+        > 75d => "countdown-progress-green",
+        > 25d => "countdown-progress-blue",
+        _ => "countdown-progress-red"
+    };
 
     private void StopCountdown()
     {
         _countdownTimer?.Dispose();
         _countdownTimer = null;
     }
+
+    private sealed record CountdownState(int RemainingSeconds, double ProgressPercent, string ProgressClass);
 }

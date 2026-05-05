@@ -306,6 +306,41 @@ input {
     align-items: start;
 }
 
+.countdown-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.countdown-progress {
+    width: 120px;
+    max-width: 100%;
+    height: 0.45rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.countdown-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    transition: width 0.18s linear, background-color 0.18s ease;
+}
+
+.countdown-progress-green {
+    background: #27ae60;
+}
+
+.countdown-progress-blue {
+    background: #2f80ed;
+}
+
+.countdown-progress-red {
+    background: #ff4d4f;
+}
+
 .badge,
 .correct-label {
     display: inline-flex;
@@ -497,6 +532,14 @@ input {
     .question-header,
     .players-header {
         flex-direction: column;
+    }
+
+    .countdown-stack {
+        align-items: stretch;
+    }
+
+    .countdown-progress {
+        width: 100%;
     }
 
     .results-chart {

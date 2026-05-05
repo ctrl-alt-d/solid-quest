@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -80,6 +81,42 @@ public class QuestUiComponentTests : BunitContext
 
         cut.Markup.Should().Contain("left");
         cut.Find(".countdown-text").TextContent.Should().Contain("left");
+        cut.Find(".countdown-progress").GetAttribute("role").Should().Be("progressbar");
+    }
+
+    [Theory]
+    [InlineData(35, "countdown-progress-green", 75.0, 100.0)]
+    [InlineData(20, "countdown-progress-blue", 25.0, 75.0)]
+    [InlineData(9, "countdown-progress-red", 0.0, 25.0)]
+    public void QuestionCard_AppliesProgressThresholdClassAndAriaValues(int remainingSeconds, string expectedClass, double minInclusive, double maxInclusive)
+    {
+        var question = CreateTimedQuestion(40, remainingSeconds);
+
+        var cut = Render<QuestionCard>(parameters => parameters
+            .Add(component => component.Question, question)
+            .Add(component => component.OnAnswer, EventCallback.Factory.Create<int>(this, _ => { })));
+
+        var progressBar = cut.Find(".countdown-progress");
+        var progressFill = cut.Find(".countdown-progress-fill");
+        var progressValue = double.Parse(progressBar.GetAttribute("aria-valuenow")!, CultureInfo.InvariantCulture);
+
+        progressFill.ClassList.Should().Contain(expectedClass);
+        progressValue.Should().BeGreaterThanOrEqualTo(minInclusive);
+        progressValue.Should().BeLessThanOrEqualTo(maxInclusive);
+        progressFill.GetAttribute("style").Should().Contain("width:");
+    }
+
+    [Fact]
+    public void QuestionCard_AdminAlsoSeesProgressBar_WhenTimingDataIsPresent()
+    {
+        var question = CreateTimedQuestion(40, 30);
+
+        var cut = Render<QuestionCard>(parameters => parameters
+            .Add(component => component.Question, question)
+            .Add(component => component.IsAdmin, true));
+
+        cut.Find(".countdown-progress").Should().NotBeNull();
+        cut.Markup.Should().Contain("Players are answering");
     }
 
     [Fact]
@@ -241,14 +278,14 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
-    public void LoginForm_UsesConfiguredAdminUserNameInPrompt()
+    public void LoginForm_RendersJoinPrompt()
     {
         Services.AddSingleton<IOptions<QuestOptions>>(Options.Create(new QuestOptions { AdminUserName = "moderator" }));
 
         var cut = Render<LoginForm>();
 
-        cut.Markup.Should().Contain("<strong>moderator</strong>");
-        cut.Markup.Should().NotContain("<strong>admin</strong>");
+        cut.Markup.Should().Contain("Join the session");
+        cut.Markup.Should().Contain("Pick a unique username.");
     }
 
     [Fact]
@@ -287,6 +324,16 @@ public class QuestUiComponentTests : BunitContext
         TotalPlayers: 10,
         TimeoutSeconds: null,
         DeadlineUtc: null);
+
+    private static QuestionView CreateTimedQuestion(int timeoutSeconds, int remainingSeconds) => CreateQuestion(
+        new AnswerOptionView(1, "Red", 0, false),
+        new AnswerOptionView(2, "Blue", 0, true),
+        new AnswerOptionView(3, "Green", 0, false),
+        new AnswerOptionView(4, "Yellow", 0, false)) with
+    {
+        TimeoutSeconds = timeoutSeconds,
+        DeadlineUtc = DateTimeOffset.UtcNow.AddSeconds(remainingSeconds)
+    };
 
     private void ConfigureHomeServices(IQuizSessionService quizSession)
     {
