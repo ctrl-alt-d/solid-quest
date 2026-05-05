@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using QuestBackend;
 
 namespace QuestBackendTest;
@@ -7,12 +8,12 @@ public sealed class QuizSessionServiceTests
     [Fact]
     public void TryJoin_RequiresUniqueUserNames_AndReservesAdminForAdminLogin()
     {
-        var session = CreateSession();
+        var session = CreateSession(adminUserName: "moderator");
 
         var firstJoin = session.TryJoin("Alice", isAdmin: false, out var firstUser, out var firstError);
         var duplicateJoin = session.TryJoin(" Alice ", isAdmin: false, out var duplicateError);
-        var reservedAdminJoin = session.TryJoin("admin", isAdmin: false, out var reservedAdminError);
-        var adminJoin = session.TryJoin("admin", isAdmin: true, out var adminUser, out var adminError);
+        var reservedAdminJoin = session.TryJoin("moderator", isAdmin: false, out var reservedAdminError);
+        var adminJoin = session.TryJoin("moderator", isAdmin: true, out var adminUser, out var adminError);
         var snapshot = session.GetSnapshot();
 
         Assert.True(firstJoin);
@@ -22,7 +23,7 @@ public sealed class QuizSessionServiceTests
         Assert.False(duplicateJoin);
         Assert.Contains("already taken", duplicateError);
         Assert.False(reservedAdminJoin);
-        Assert.Equal("The username 'admin' is reserved.", reservedAdminError);
+        Assert.Equal("The username 'moderator' is reserved.", reservedAdminError);
         Assert.True(adminJoin);
         Assert.NotNull(adminUser);
         Assert.True(Guid.TryParse(adminUser!.RestoreToken, out _));
@@ -61,11 +62,11 @@ public sealed class QuizSessionServiceTests
     [Fact]
     public async Task TryStartAsync_OpensFirstQuestion_ForAdmin()
     {
-        var session = CreateSession();
-        session.TryJoin("admin", isAdmin: true, out _);
+        var session = CreateSession(adminUserName: "moderator");
+        session.TryJoin("moderator", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
+        var result = await session.TryStartAsync("moderator", null, QuestionTimeoutSettings.DefaultSeconds);
         var snapshot = session.GetSnapshot("Alice");
 
         Assert.True(result.Success);
@@ -136,7 +137,7 @@ public sealed class QuizSessionServiceTests
     public async Task TrySubmitAnswer_AccumulatesElapsedMilliseconds_OnAcceptedAnswers()
     {
         var timeProvider = new ManualTimeProvider();
-        var session = CreateSession(timeProvider);
+        var session = CreateSession(timeProvider: timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
@@ -159,7 +160,7 @@ public sealed class QuizSessionServiceTests
     public async Task TrySubmitAnswer_DuplicateAnswer_DoesNotAccumulateTimeTwice()
     {
         var timeProvider = new ManualTimeProvider();
-        var session = CreateSession(timeProvider);
+        var session = CreateSession(timeProvider: timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
@@ -182,7 +183,7 @@ public sealed class QuizSessionServiceTests
     public async Task Leaderboard_BreaksScoreTies_ByLowerTotalMilliseconds()
     {
         var timeProvider = new ManualTimeProvider();
-        var session = CreateSession(timeProvider);
+        var session = CreateSession(timeProvider: timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
@@ -296,8 +297,12 @@ public sealed class QuizSessionServiceTests
         Assert.Null(snapshot.CurrentQuestion.DeadlineUtc);
     }
 
-    private static QuizSessionService CreateSession(TimeProvider? timeProvider = null, IQuestionLoader? questionLoader = null)
-        => new(new Users(), questionLoader ?? new StubQuestionLoader(CreateSampleQuestionLoadResult()), timeProvider ?? new ManualTimeProvider());
+    private static QuizSessionService CreateSession(string? adminUserName = null, TimeProvider? timeProvider = null, IQuestionLoader? questionLoader = null)
+        => new(
+            new Users(),
+            questionLoader ?? new StubQuestionLoader(CreateSampleQuestionLoadResult()),
+            timeProvider ?? new ManualTimeProvider(),
+            Options.Create(new QuestOptions { AdminUserName = adminUserName ?? QuestOptions.DefaultAdminUserName }));
 
     private static QuestionLoadResult CreateSampleQuestionLoadResult()
         => QuestionLoadResult.Succeeded(

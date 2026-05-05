@@ -12,6 +12,8 @@ builder.Services.AddRazorComponents()
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorizationCore();
+builder.Services.AddOptions<QuestOptions>()
+    .BindConfiguration(QuestOptions.SectionName);
 builder.Services.AddMyFeature();
 builder.Services.AddScoped<PlayerSession>();
 builder.Services.AddScoped<CustomAuthStateProvider>();

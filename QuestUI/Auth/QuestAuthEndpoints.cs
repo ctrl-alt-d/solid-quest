@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using QuestBackend;
 
 namespace QuestUI.Auth;
@@ -9,11 +10,11 @@ public static class QuestAuthEndpoints
 {
     public static IEndpointRouteBuilder MapQuestAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/auth/login", async Task<IResult> (HttpContext httpContext, IQuizSessionService quizSession) =>
+        endpoints.MapPost("/auth/login", async Task<IResult> (HttpContext httpContext, IQuizSessionService quizSession, IOptions<QuestOptions> questOptions) =>
         {
             var form = await httpContext.Request.ReadFormAsync();
             var userName = form["username"].ToString();
-            var isAdmin = string.Equals(userName.Trim(), "admin", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = questOptions.Value.IsAdminUserName(userName);
 
             if (!quizSession.TryJoin(userName, isAdmin, out var user, out var errorMessage) || user is null)
             {

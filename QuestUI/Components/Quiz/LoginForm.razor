@@ -1,8 +1,12 @@
+@using Microsoft.Extensions.Options
+@using QuestBackend
+@inject IOptions<QuestOptions> QuestOptionsAccessor
+
 <section class="card auth-card">
     <div>
         <p class="eyebrow">Solid Quest</p>
         <h1>Join the session</h1>
-        <p class="muted">Pick a unique username. Enter <strong>admin</strong> to access moderator controls.</p>
+        <p class="muted">Pick a unique username.</p>
     </div>
 
     <form method="post" action="/auth/login">

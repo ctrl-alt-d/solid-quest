@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace QuestBackend;
 
 public sealed class QuizSessionService : IQuizSessionService
@@ -7,6 +9,7 @@ public sealed class QuizSessionService : IQuizSessionService
     private readonly IUsers _users;
     private readonly IQuestionLoader _questionLoader;
     private readonly TimeProvider _timeProvider;
+    private readonly QuestOptions _questOptions;
     private readonly Lock _lock = new();
 
     private IReadOnlyList<Question> _questions = [];
@@ -17,11 +20,12 @@ public sealed class QuizSessionService : IQuizSessionService
     private DateTimeOffset? _currentQuestionOpenedAt;
     private int _questionTimeoutSeconds = QuestionTimeoutSettings.DefaultSeconds;
 
-    public QuizSessionService(IUsers users, IQuestionLoader questionLoader, TimeProvider timeProvider)
+    public QuizSessionService(IUsers users, IQuestionLoader questionLoader, TimeProvider timeProvider, IOptions<QuestOptions> questOptions)
     {
         _users = users;
         _questionLoader = questionLoader;
         _timeProvider = timeProvider;
+        _questOptions = questOptions.Value;
     }
 
     public event Action? StateChanged;
@@ -67,10 +71,10 @@ public sealed class QuizSessionService : IQuizSessionService
                 return false;
             }
 
-            if (trimmedUserName.Equals("admin", StringComparison.OrdinalIgnoreCase) && !isAdmin)
+            if (_questOptions.IsAdminUserName(trimmedUserName) && !isAdmin)
             {
                 user = null;
-                errorMessage = "The username 'admin' is reserved.";
+                errorMessage = $"The username '{_questOptions.AdminUserName}' is reserved.";
                 return false;
             }
 
@@ -378,7 +382,7 @@ public sealed class QuizSessionService : IQuizSessionService
         return playerCount == 0 || _answers.Count >= playerCount;
     }
 
-    private bool IsAdmin(string userName) => Normalize(userName).Equals("admin", StringComparison.Ordinal);
+    private bool IsAdmin(string userName) => _questOptions.IsAdminUserName(Normalize(userName));
 
     private long GetElapsedMillisecondsForCurrentQuestion()
     {

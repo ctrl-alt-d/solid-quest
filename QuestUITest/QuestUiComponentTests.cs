@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using QuestBackend;
 using QuestUI.Auth;
@@ -190,7 +191,7 @@ public class QuestUiComponentTests : BunitContext
     public async Task Home_AdminStart_ClickingStartCallsTryStartAsync()
     {
         var quizSession = Substitute.For<IQuizSessionService>();
-        var admin = CreateUser("admin", isAdmin: true);
+        var admin = CreateUser("moderator", isAdmin: true);
         ConfigureHomeServices(quizSession);
         AuthenticateAs(admin);
 
@@ -210,7 +211,7 @@ public class QuestUiComponentTests : BunitContext
     public async Task Home_AdminStart_WithQuestionsUrl_CallsTryStartAsyncWithUrl()
     {
         var quizSession = Substitute.For<IQuizSessionService>();
-        var admin = CreateUser("admin", isAdmin: true);
+        var admin = CreateUser("moderator", isAdmin: true);
         ConfigureHomeServices(quizSession);
         AuthenticateAs(admin);
 
@@ -237,6 +238,17 @@ public class QuestUiComponentTests : BunitContext
 
         cut.FindAll("#questions-url").Should().BeEmpty();
         cut.FindAll("#question-timeout-seconds").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void LoginForm_UsesConfiguredAdminUserNameInPrompt()
+    {
+        Services.AddSingleton<IOptions<QuestOptions>>(Options.Create(new QuestOptions { AdminUserName = "moderator" }));
+
+        var cut = Render<LoginForm>();
+
+        cut.Markup.Should().Contain("<strong>moderator</strong>");
+        cut.Markup.Should().NotContain("<strong>admin</strong>");
     }
 
     [Fact]
@@ -278,6 +290,7 @@ public class QuestUiComponentTests : BunitContext
 
     private void ConfigureHomeServices(IQuizSessionService quizSession)
     {
+        Services.AddSingleton<IOptions<QuestOptions>>(Options.Create(new QuestOptions()));
         Services.AddSingleton(quizSession);
         Services.AddSingleton<PlayerSession>();
         Services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
