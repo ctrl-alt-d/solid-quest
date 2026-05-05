@@ -18,7 +18,7 @@
         var snapshot = QuizSession.GetSnapshot(_userName);
         var currentQuestion = snapshot.CurrentQuestion;
 
-        <SessionHeader UserName="@_userName" IsAdmin="@_isAdmin" />
+        <SessionHeader UserName="@_userName" IsAdmin="@_isAdmin" OnRestart="HandleRestartAsync" />
 
         @if (!string.IsNullOrWhiteSpace(_actionError))
         {
@@ -140,6 +140,20 @@
     private Task HandleAdvanceAsync()
     {
         if (!QuizSession.TryAdvance(_userName, out var errorMessage))
+        {
+            _actionError = errorMessage;
+        }
+        else
+        {
+            _actionError = string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task HandleRestartAsync()
+    {
+        if (!QuizSession.TryRestart(_userName, out var errorMessage))
         {
             _actionError = errorMessage;
         }

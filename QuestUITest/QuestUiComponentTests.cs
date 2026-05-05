@@ -228,6 +228,21 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
+    public void SessionHeader_RendersRestartButton_ForAdminOnly()
+    {
+        var adminCut = Render<SessionHeader>(parameters => parameters
+            .Add(component => component.UserName, "moderator")
+            .Add(component => component.IsAdmin, true));
+        var playerCut = Render<SessionHeader>(parameters => parameters
+            .Add(component => component.UserName, "Alice")
+            .Add(component => component.IsAdmin, false));
+
+        adminCut.FindAll("button.danger-button").Should().ContainSingle();
+        adminCut.Markup.Should().Contain("Restart quest");
+        playerCut.FindAll("button.danger-button").Should().BeEmpty();
+    }
+
+    [Fact]
     public void WinnerPodium_RendersTopEntriesInOlympicOrder()
     {
         var cut = Render<WinnerPodium>(parameters => parameters
@@ -309,6 +324,30 @@ public class QuestUiComponentTests : BunitContext
         cut.Find("button.primary-button").Click();
 
         await quizSession.Received(1).TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Home_AdminRestart_ClickingRestartCallsTryRestart()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("moderator", isAdmin: true);
+        ConfigureHomeServices(quizSession);
+        AuthenticateAs(admin);
+
+        quizSession.GetSnapshot(admin.UserName).Returns(CreateCompletedSnapshot(admin));
+        quizSession
+            .TryRestart(admin.UserName, out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var cut = Render<Home>();
+
+        cut.Find("button.danger-button").Click();
+
+        quizSession.Received(1).TryRestart(admin.UserName, out Arg.Any<string>());
     }
 
     [Fact]

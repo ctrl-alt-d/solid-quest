@@ -112,6 +112,76 @@ public sealed class QuizSessionServiceTests
         Assert.Equal(new[] { true, false, false, false }, resultsSnapshot.CurrentQuestion.Answers.Select(answer => answer.IsCorrect));
     }
 
+    [Theory]
+    [InlineData(QuizStage.QuestionOpen)]
+    [InlineData(QuizStage.QuestionResults)]
+    [InlineData(QuizStage.Completed)]
+    public async Task TryRestart_AdminResetsQuestState_FromAnyStartedStage(QuizStage targetStage)
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out var alice, out _);
+        session.TryJoin("Bob", isAdmin: false, out var bob, out _);
+        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
+
+        if (targetStage == QuizStage.QuestionOpen)
+        {
+            session.TrySubmitAnswer("Alice", 1, out _);
+        }
+        else if (targetStage == QuizStage.QuestionResults)
+        {
+            session.TrySubmitAnswer("Alice", 1, out _);
+            session.TrySubmitAnswer("Bob", 2, out _);
+        }
+        else if (targetStage == QuizStage.Completed)
+        {
+            session.TrySubmitAnswer("Alice", 1, out _);
+            session.TrySubmitAnswer("Bob", 2, out _);
+            session.TryAdvance("admin", out _);
+            session.TrySubmitAnswer("Alice", 1, out _);
+            session.TrySubmitAnswer("Bob", 2, out _);
+            session.TryAdvance("admin", out _);
+        }
+
+        var restarted = session.TryRestart("admin", out var errorMessage);
+        var snapshot = session.GetSnapshot("Alice");
+
+        Assert.True(restarted);
+        Assert.Equal(string.Empty, errorMessage);
+        Assert.Equal(QuizStage.Enrollment, snapshot.Stage);
+        Assert.Null(snapshot.CurrentQuestion);
+        Assert.True(snapshot.CanStart);
+        Assert.Equal(2, snapshot.PlayerCount);
+        Assert.Equal(["Alice", "Bob"], snapshot.EnrolledPlayers);
+        Assert.Equal(
+            [
+                new LeaderboardEntry("Alice", 0, 0),
+                new LeaderboardEntry("Bob", 0, 0)
+            ],
+            snapshot.Leaderboard);
+        Assert.True(session.TryRestoreUser(alice!.RestoreToken, out var restoredAlice));
+        Assert.True(session.TryRestoreUser(bob!.RestoreToken, out var restoredBob));
+        Assert.Equal("Alice", restoredAlice!.UserName);
+        Assert.Equal("Bob", restoredBob!.UserName);
+    }
+
+    [Fact]
+    public async Task TryRestart_NonAdmin_IsRejected()
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds);
+
+        var restarted = session.TryRestart("Alice", out var errorMessage);
+        var snapshot = session.GetSnapshot("Alice");
+
+        Assert.False(restarted);
+        Assert.Equal("Only admin can restart the session.", errorMessage);
+        Assert.Equal(QuizStage.QuestionOpen, snapshot.Stage);
+        Assert.NotNull(snapshot.CurrentQuestion);
+    }
+
     [Fact]
     public async Task ResultsSnapshot_UpdatesLeaderboard_ByCorrectAnswers()
     {

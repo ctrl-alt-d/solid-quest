@@ -65,10 +65,10 @@
         }
         else
         {
-            <ul class="player-list player-chip-grid">
+            <ul class="player-list player-chip-list" aria-label="Enrolled players">
                 @foreach (var player in Snapshot.EnrolledPlayers)
                 {
-                    <li>@player</li>
+                    <li class="player-chip">@player</li>
                 }
             </ul>
         }

@@ -202,6 +202,24 @@ public sealed class QuizSessionService : IQuizSessionService
         return QuizActionResult.Succeeded();
     }
 
+    public bool TryRestart(string userName, out string errorMessage)
+    {
+        lock (_lock)
+        {
+            if (!IsAdmin(userName))
+            {
+                errorMessage = "Only admin can restart the session.";
+                return false;
+            }
+
+            ResetSessionCore();
+        }
+
+        NotifyStateChanged();
+        errorMessage = string.Empty;
+        return true;
+    }
+
     public bool TrySubmitAnswer(string userName, int answerIndex, out string errorMessage)
     {
         lock (_lock)
@@ -321,6 +339,17 @@ public sealed class QuizSessionService : IQuizSessionService
             totalPlayers,
             _stage == QuizStage.QuestionOpen ? _questionTimeoutSeconds : null,
             GetCurrentQuestionDeadlineUtc());
+    }
+
+    private void ResetSessionCore()
+    {
+        StopTimerCore();
+        _questions = [];
+        _answers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        _stage = QuizStage.Enrollment;
+        _currentQuestionIndex = -1;
+        _questionTimeoutSeconds = QuestionTimeoutSettings.DefaultSeconds;
+        _users.ResetScores();
     }
 
     private void OpenQuestionCore()

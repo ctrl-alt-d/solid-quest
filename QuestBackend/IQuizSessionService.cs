@@ -11,6 +11,7 @@ public interface IQuizSessionService
     void Leave(string userName);
     void LeaveByRestoreToken(string restoreToken);
     Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, int questionTimeoutSeconds, CancellationToken cancellationToken = default);
+    bool TryRestart(string userName, out string errorMessage);
     bool TrySubmitAnswer(string userName, int answerIndex, out string errorMessage);
     bool TryAdvance(string userName, out string errorMessage);
 }
