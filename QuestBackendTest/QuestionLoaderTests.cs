@@ -16,9 +16,9 @@ public sealed class QuestionLoaderTests
         var secondQuestion = questions[1];
 
         Assert.True(result.Success);
-        Assert.Equal("Una <strong>interfície</strong>", firstQuestion.Text);
-        Assert.Contains("<strong>mètodes</strong>", firstQuestion.Answer1);
-        Assert.Contains("<code>new()</code>", firstQuestion.Answer2);
+        Assert.Contains("Quí es aquest personatge?", firstQuestion.Text);
+        Assert.Contains("<img src=\"https://i.imgur.com/3Wjd4JG.jpeg\" alt=\"Gat amb cos de torrada que vola\"", firstQuestion.Text);
+        Assert.Contains("Nyan Cat", firstQuestion.Answer1);
         Assert.Equal("Una classe abstracta <strong>NO</strong> pot", secondQuestion.Text);
         Assert.Contains("<code>new()</code>", secondQuestion.Answer1);
     }
@@ -30,9 +30,9 @@ public sealed class QuestionLoaderTests
         var explanation = result.Questions[0].Explanation;
 
         Assert.True(result.Success);
-        Assert.Contains("<p>En C#, una interfície defineix un contracte.</p>", explanation);
-        Assert.Contains("<ul>", explanation);
-        Assert.DoesNotContain("```c#", explanation);
+        Assert.Contains("<p>Nyan Cat és un meme d'internet que va sorgir el 2011.</p>", explanation);
+        Assert.Contains("video a yotube", explanation);
+        Assert.DoesNotContain("```", explanation);
     }
 
     [Fact]
@@ -48,11 +48,11 @@ public sealed class QuestionLoaderTests
     public async Task LoadSampleQuestionsAsync_RendersCodeFencesAsPreformattedHtml()
     {
         var result = await CreateLoader().LoadSampleQuestionsAsync();
-        var explanation = result.Questions[0].Explanation;
+        var explanation = result.Questions[1].Explanation; // Second question has code fence
 
         Assert.True(result.Success);
         Assert.Contains("<pre><code class=\"language-c#\">", explanation);
-        Assert.Contains("public interface IUser", explanation);
+        Assert.Contains("public abstract class UserBase", explanation);
         Assert.Contains("</code></pre>", explanation);
     }
 
@@ -60,6 +60,7 @@ public sealed class QuestionLoaderTests
     public async Task LoadQuestionsFromUrlAsync_LoadsQuestions_WhenHttp200ReturnsYaml()
     {
         var yaml = """
+            title: "Remote Quest"
             questions:
               - title: "Remote question"
                 options:
@@ -116,6 +117,7 @@ public sealed class QuestionLoaderTests
     public async Task LoadQuestionsFromUrlAsync_ReturnsFriendlyError_WhenQuestionsAreInvalid()
     {
         var yaml = """
+            title: "Invalid Quest"
             questions:
               - title: ""
                 options:
@@ -135,7 +137,7 @@ public sealed class QuestionLoaderTests
         Assert.Equal("Question 1 must define non-empty text.", result.ErrorMessage);
     }
 
-    private static QuestionLoader CreateLoader(HttpStatusCode statusCode = HttpStatusCode.OK, string responseBody = "questions: []")
+    private static QuestionLoader CreateLoader(HttpStatusCode statusCode = HttpStatusCode.OK, string responseBody = "title: Sample\nquestions: []")
         => new(new HttpClient(new StubHttpMessageHandler(statusCode, responseBody)));
 
     private sealed class StubHttpMessageHandler(HttpStatusCode statusCode, string responseBody) : HttpMessageHandler

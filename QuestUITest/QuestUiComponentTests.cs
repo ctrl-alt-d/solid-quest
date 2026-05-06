@@ -335,6 +335,26 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
+    public async Task Home_AdminLoad_ClickingLoadCallsTryLoadQuestAsync()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("moderator", isAdmin: true);
+        ConfigureHomeServices(quizSession);
+        AuthenticateAs(admin);
+
+        quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: false, enrolledPlayers: ["Alice"]));
+        quizSession
+            .TryLoadQuestAsync(admin.UserName, string.Empty, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(QuizActionResult.Succeeded()));
+
+        var cut = Render<Home>();
+
+        cut.Find("button.primary-button").Click();
+
+        await quizSession.Received(1).TryLoadQuestAsync(admin.UserName, string.Empty, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Home_AdminStart_ClickingStartCallsTryStartAsync()
     {
         var quizSession = Substitute.For<IQuizSessionService>();
@@ -342,38 +362,48 @@ public class QuestUiComponentTests : BunitContext
         ConfigureHomeServices(quizSession);
         AuthenticateAs(admin);
 
-        quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
+        var acceptingPlayersSnapshot = new QuizSessionSnapshot(
+            QuizStage.AcceptingPlayers,
+            HasAdmin: true,
+            CanStart: true,
+            CanLoad: false,
+            PlayerCount: 1,
+            EnrolledPlayers: ["Alice"],
+            QuestMetadata: new QuestMetadata("Test Quest", null, null),
+            CurrentQuestion: null,
+            Leaderboard: []);
+
+        quizSession.GetSnapshot(admin.UserName).Returns(acceptingPlayersSnapshot);
         quizSession
-            .TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, true, Arg.Any<CancellationToken>())
+            .TryStartAsync(admin.UserName, QuestionTimeoutSettings.DefaultSeconds, true, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(QuizActionResult.Succeeded()));
 
         var cut = Render<Home>();
 
         cut.Find("button.primary-button").Click();
 
-        await quizSession.Received(1).TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, true, Arg.Any<CancellationToken>());
+        await quizSession.Received(1).TryStartAsync(admin.UserName, QuestionTimeoutSettings.DefaultSeconds, true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Home_AdminStart_WithQuestionsUrl_CallsTryStartAsyncWithUrl()
+    public async Task Home_AdminLoad_WithQuestionsUrl_CallsTryLoadQuestAsyncWithUrl()
     {
         var quizSession = Substitute.For<IQuizSessionService>();
         var admin = CreateUser("moderator", isAdmin: true);
         ConfigureHomeServices(quizSession);
         AuthenticateAs(admin);
 
-        quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
+        quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: false, enrolledPlayers: ["Alice"]));
         quizSession
-            .TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, true, Arg.Any<CancellationToken>())
+            .TryLoadQuestAsync(admin.UserName, "https://example.com/questions.yaml", Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(QuizActionResult.Succeeded()));
 
         var cut = Render<Home>();
 
         cut.Find("#questions-url").Input("https://example.com/questions.yaml");
-        cut.Find("#question-timeout-seconds").Input("45");
         cut.Find("button.primary-button").Click();
 
-        await quizSession.Received(1).TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, true, Arg.Any<CancellationToken>());
+        await quizSession.Received(1).TryLoadQuestAsync(admin.UserName, "https://example.com/questions.yaml", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -470,6 +500,8 @@ public class QuestUiComponentTests : BunitContext
         Number: 1,
         Total: 10,
         Text: "What is SOLID?",
+        Image: null,
+        ImageAlt: null,
         Answers: answers,
         Explanation: "Because design matters.",
         SelectedAnswer: null,
@@ -515,8 +547,10 @@ public class QuestUiComponentTests : BunitContext
         Stage: QuizStage.Enrollment,
         HasAdmin: true,
         CanStart: canStart,
+        CanLoad: true,
         PlayerCount: enrolledPlayers.Count,
         EnrolledPlayers: enrolledPlayers,
+        QuestMetadata: null,
         CurrentQuestion: null,
         Leaderboard: []);
 
@@ -524,8 +558,10 @@ public class QuestUiComponentTests : BunitContext
         Stage: QuizStage.QuestionOpen,
         HasAdmin: true,
         CanStart: true,
+        CanLoad: false,
         PlayerCount: 1,
         EnrolledPlayers: ["Alice"],
+        QuestMetadata: new QuestMetadata("Test Quest", null, null),
         CurrentQuestion: CreateQuestion(
             new AnswerOptionView(1, "Red", 0, false),
             new AnswerOptionView(2, "Blue", 0, true),
@@ -537,8 +573,10 @@ public class QuestUiComponentTests : BunitContext
         Stage: QuizStage.QuestionResults,
         HasAdmin: true,
         CanStart: true,
+        CanLoad: false,
         PlayerCount: 1,
         EnrolledPlayers: [player.UserName],
+        QuestMetadata: new QuestMetadata("Test Quest", null, null),
         CurrentQuestion: CreateQuestion(
             new AnswerOptionView(1, "Red", 1, false),
             new AnswerOptionView(2, "Blue", 0, true),
@@ -556,8 +594,222 @@ public class QuestUiComponentTests : BunitContext
         Stage: QuizStage.Completed,
         HasAdmin: true,
         CanStart: true,
+        CanLoad: false,
         PlayerCount: 1,
         EnrolledPlayers: [player.UserName],
+        QuestMetadata: new QuestMetadata("Test Quest", null, null),
         CurrentQuestion: null,
         Leaderboard: [new LeaderboardEntry(player.UserName, 1, 0)]);
+
+    [Fact]
+    public async Task HomePageShowsPreviewModeWhenAdminClicksPreviewButton()
+    {
+        var quizService = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("admin", isAdmin: true);
+        ConfigureHomeServices(quizService);
+        AuthenticateAs(admin);
+        
+        var snapshot = new QuizSessionSnapshot(
+            Stage: QuizStage.AcceptingPlayers,
+            HasAdmin: true,
+            CanStart: true,
+            CanLoad: false,
+            PlayerCount: 1,
+            EnrolledPlayers: ["admin"],
+            QuestMetadata: new QuestMetadata("Test Quest", null, null),
+            CurrentQuestion: null,
+            Leaderboard: []);
+        
+        quizService.GetSnapshot(admin.UserName).Returns(snapshot);
+        quizService.GetQuestionCount().Returns(3);
+        
+        var previewQuestion = CreateQuestion(
+            new AnswerOptionView(1, "Red", 0, false),
+            new AnswerOptionView(2, "Blue", 0, false),
+            new AnswerOptionView(3, "Green", 0, false),
+            new AnswerOptionView(4, "Yellow", 0, false)) with
+        {
+            Number = 1,
+            Total = 3,
+            Points = 0,
+            SelectedAnswer = null,
+            CorrectAnswer = null,
+            Explanation = null
+        };
+        
+        quizService.GetPreviewQuestion(admin.UserName, 0).Returns(previewQuestion);
+        
+        var cut = Render<Home>();
+        
+        var previewButton = cut.Find("button:contains('Preview questions')");
+        await previewButton.ClickAsync(new());
+        
+        cut.Markup.Should().Contain("Preview Mode");
+        cut.Markup.Should().Contain("Exit Preview");
+        cut.Markup.Should().Contain("Question 1 / 3");
+    }
+
+    [Fact]
+    public async Task PreviewModeShowsQuestionWithoutCorrectAnswerOrExplanation()
+    {
+        var quizService = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("admin", isAdmin: true);
+        ConfigureHomeServices(quizService);
+        AuthenticateAs(admin);
+        
+        var snapshot = new QuizSessionSnapshot(
+            Stage: QuizStage.AcceptingPlayers,
+            HasAdmin: true,
+            CanStart: true,
+            CanLoad: false,
+            PlayerCount: 1,
+            EnrolledPlayers: ["admin"],
+            QuestMetadata: new QuestMetadata("Test Quest", null, null),
+            CurrentQuestion: null,
+            Leaderboard: []);
+        
+        quizService.GetSnapshot(admin.UserName).Returns(snapshot);
+        quizService.GetQuestionCount().Returns(2);
+        
+        var previewQuestion = CreateQuestion(
+            new AnswerOptionView(1, "Red", 0, false),
+            new AnswerOptionView(2, "Blue", 0, false),
+            new AnswerOptionView(3, "Green", 0, false),
+            new AnswerOptionView(4, "Yellow", 0, false)) with
+        {
+            Number = 1,
+            Total = 2,
+            Text = "What is your favorite color?",
+            Points = 0,
+            SelectedAnswer = null,
+            CorrectAnswer = null,
+            Explanation = null
+        };
+        
+        quizService.GetPreviewQuestion(admin.UserName, 0).Returns(previewQuestion);
+        
+        var cut = Render<Home>();
+        
+        var previewButton = cut.Find("button:contains('Preview questions')");
+        await previewButton.ClickAsync(new());
+        
+        cut.Markup.Should().Contain("What is your favorite color?");
+        cut.FindAll(".preview-answer").Should().HaveCount(4);
+        cut.Markup.Should().NotContain("points-badge");
+        cut.Markup.Should().NotContain("countdown");
+    }
+
+    [Fact]
+    public async Task PreviewModeNavigatesBetweenQuestions()
+    {
+        var quizService = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("admin", isAdmin: true);
+        ConfigureHomeServices(quizService);
+        AuthenticateAs(admin);
+        
+        var snapshot = new QuizSessionSnapshot(
+            Stage: QuizStage.AcceptingPlayers,
+            HasAdmin: true,
+            CanStart: true,
+            CanLoad: false,
+            PlayerCount: 1,
+            EnrolledPlayers: ["admin"],
+            QuestMetadata: new QuestMetadata("Test Quest", null, null),
+            CurrentQuestion: null,
+            Leaderboard: []);
+        
+        quizService.GetSnapshot(admin.UserName).Returns(snapshot);
+        quizService.GetQuestionCount().Returns(3);
+        
+        var question1 = CreateQuestion(
+            new AnswerOptionView(1, "Red", 0, false),
+            new AnswerOptionView(2, "Blue", 0, false),
+            new AnswerOptionView(3, "Green", 0, false),
+            new AnswerOptionView(4, "Yellow", 0, false)) with
+        {
+            Number = 1,
+            Total = 3,
+            Text = "Question 1",
+            Points = 0
+        };
+        
+        var question2 = CreateQuestion(
+            new AnswerOptionView(1, "Cat", 0, false),
+            new AnswerOptionView(2, "Dog", 0, false),
+            new AnswerOptionView(3, "Bird", 0, false),
+            new AnswerOptionView(4, "Fish", 0, false)) with
+        {
+            Number = 2,
+            Total = 3,
+            Text = "Question 2",
+            Points = 0
+        };
+        
+        quizService.GetPreviewQuestion(admin.UserName, 0).Returns(question1);
+        quizService.GetPreviewQuestion(admin.UserName, 1).Returns(question2);
+        
+        var cut = Render<Home>();
+        
+        var previewButton = cut.Find("button:contains('Preview questions')");
+        await previewButton.ClickAsync(new());
+        
+        cut.Markup.Should().Contain("Question 1");
+        cut.Markup.Should().Contain("1 / 3");
+        
+        var nextButton = cut.Find("button:contains('Next')");
+        await nextButton.ClickAsync(new());
+        
+        cut.Markup.Should().Contain("Question 2");
+        cut.Markup.Should().Contain("2 / 3");
+    }
+
+    [Fact]
+    public async Task PreviewModeExitsAndReturnsToLobby()
+    {
+        var quizService = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("admin", isAdmin: true);
+        ConfigureHomeServices(quizService);
+        AuthenticateAs(admin);
+        
+        var snapshot = new QuizSessionSnapshot(
+            Stage: QuizStage.AcceptingPlayers,
+            HasAdmin: true,
+            CanStart: true,
+            CanLoad: false,
+            PlayerCount: 1,
+            EnrolledPlayers: ["admin"],
+            QuestMetadata: new QuestMetadata("Test Quest", null, null),
+            CurrentQuestion: null,
+            Leaderboard: []);
+        
+        quizService.GetSnapshot(admin.UserName).Returns(snapshot);
+        quizService.GetQuestionCount().Returns(2);
+        
+        var previewQuestion = CreateQuestion(
+            new AnswerOptionView(1, "Red", 0, false),
+            new AnswerOptionView(2, "Blue", 0, false),
+            new AnswerOptionView(3, "Green", 0, false),
+            new AnswerOptionView(4, "Yellow", 0, false)) with
+        {
+            Number = 1,
+            Total = 2,
+            Points = 0
+        };
+        
+        quizService.GetPreviewQuestion(admin.UserName, 0).Returns(previewQuestion);
+        
+        var cut = Render<Home>();
+        
+        var previewButton = cut.Find("button:contains('Preview questions')");
+        await previewButton.ClickAsync(new());
+        
+        cut.Markup.Should().Contain("Preview Mode");
+        
+        var exitButton = cut.Find("button:contains('Exit Preview')");
+        await exitButton.ClickAsync(new());
+        
+        cut.Markup.Should().NotContain("Preview Mode");
+        cut.Markup.Should().Contain("Start session");
+    }
 }
+

@@ -6,6 +6,8 @@ public sealed record QuestionView(
     int Number,
     int Total,
     string Text,
+    string? Image,
+    string? ImageAlt,
     IReadOnlyList<AnswerOptionView> Answers,
     string Explanation,
     int? SelectedAnswer,

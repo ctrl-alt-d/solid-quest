@@ -80,15 +80,27 @@ public class QuestionLoader : IQuestionLoader
             return QuestionLoadResult.Failed("Questions YAML must define a questions list.");
         }
 
+        if (string.IsNullOrWhiteSpace(payload.Title))
+        {
+            return QuestionLoadResult.Failed("Questions YAML must define a quest title.");
+        }
+
         var validationError = ValidateQuestions(payload.Questions);
         if (validationError is not null)
         {
             return QuestionLoadResult.Failed(validationError);
         }
 
+        var metadata = new QuestMetadata(
+            payload.Title.Trim(),
+            string.IsNullOrWhiteSpace(payload.Image) ? null : payload.Image.Trim(),
+            string.IsNullOrWhiteSpace(payload.ImageAlt) ? null : payload.ImageAlt.Trim());
+
         var questions = payload.Questions.Select(q => new Question
         {
             Text = ConvertInlineMarkdownToHtml(q.Title),
+            Image = string.IsNullOrWhiteSpace(q.Image) ? null : q.Image.Trim(),
+            ImageAlt = string.IsNullOrWhiteSpace(q.ImageAlt) ? null : q.ImageAlt.Trim(),
             Answer1 = ConvertInlineMarkdownToHtml(q.Options[0]),
             Answer2 = ConvertInlineMarkdownToHtml(q.Options[1]),
             Answer3 = ConvertInlineMarkdownToHtml(q.Options[2]),
@@ -97,7 +109,7 @@ public class QuestionLoader : IQuestionLoader
             Explanation = ConvertMarkdownToHtml(q.Explanation),
         }).ToList();
 
-        return QuestionLoadResult.Succeeded(questions);
+        return QuestionLoadResult.Succeeded(metadata, questions);
     }
 
     private static string ConvertMarkdownToHtml(string markdown) => Markdown.ToHtml(markdown, MarkdownPipeline).Trim();
@@ -160,30 +172,33 @@ public class QuestionLoader : IQuestionLoader
     }
 
     private const string Questions = """
-    title: "Alguns conceptes bàsics"
+    title: "Memes i Programació"
+    image: null
+    image_alt: null
     questions:
-      - title: "Una **interfície**"
+      - title: |
+            Quí es aquest personatge?
+            ![Gat amb cos de torrada que vola](https://i.imgur.com/3Wjd4JG.jpeg)
+        image: null
+        image_alt: null
         options:
-          - "És un contracte que defineix **mètodes** i propietats a implementar"
-          - "Es pot instanciar amb `new()`"
-          - "No pot implementar altres interfícies"
-          - ".NET no té interfícies"
+          - "Nyan Cat"
+          - "Cat Nyan"
+          - "Flying Toast Cat"
+          - "Tostada Voladora"
         correct_answer: 1
         explanation: |
-          En C#, una interfície defineix un contracte.
-
-          ```c#
-          public interface IUser
-          {
-              void SetPassword(string password);
-              int Edat { get; set; }
-          }
-          ```
-
-          - No es pot instanciar directament.
-          - Sí que pot heretar d'altres interfícies.
+          Nyan Cat és un meme d'internet que va sorgir el 2011.
+          
+          Es tracta d'un gif animat d'un gat amb cos de torrada que vola 
+          deixant una estela de colors de l'arc de Sant Martí.
+          
+          Un video a yotube amb aquest gif va acumular milions de reproduccions
+          i va convertir-se en un fenomen viral.
 
       - title: "Una classe abstracta **NO** pot"
+        image: null
+        image_alt: null
         options:
           - "Instanciar-se amb `new()`"
           - "Heretar d'altres classes"
@@ -208,13 +223,17 @@ public class QuestionLoader : IQuestionLoader
 
     private class QuestionsYaml
     {
-        public string? Title { get; set; }
+        public required string Title { get; set; }
+        public string? Image { get; set; }
+        public string? ImageAlt { get; set; }
         public required List<QuestionYaml> Questions { get; set; }
     }
 
     private class QuestionYaml
     {
         public required string Title { get; set; }
+        public string? Image { get; set; }
+        public string? ImageAlt { get; set; }
         public required List<string> Options { get; set; }
         public required int CorrectAnswer { get; set; }
         public required string Explanation { get; set; }

@@ -13,6 +13,7 @@ public sealed class QuizSessionService : IQuizSessionService
     private readonly QuestOptions _questOptions;
     private readonly Lock _lock = new();
 
+    private QuestMetadata? _questMetadata;
     private IReadOnlyList<Question> _questions = [];
     private Dictionary<string, int> _answers = new(StringComparer.OrdinalIgnoreCase);
     private Timer? _questionTimer;
@@ -42,9 +43,11 @@ public sealed class QuizSessionService : IQuizSessionService
             return new QuizSessionSnapshot(
                 _stage,
                 _users.HasAdmin,
-                _stage == QuizStage.Enrollment && enrolledPlayers.Count > 0,
+                _stage == QuizStage.AcceptingPlayers && enrolledPlayers.Count > 0,
+                _stage == QuizStage.Enrollment && _users.HasAdmin,
                 enrolledPlayers.Count,
                 enrolledPlayers,
+                _questMetadata,
                 BuildQuestionView(userName),
                 leaderboard);
         }
@@ -66,7 +69,7 @@ public sealed class QuizSessionService : IQuizSessionService
 
         lock (_lock)
         {
-            if (!isAdmin && _stage != QuizStage.Enrollment)
+            if (!isAdmin && _stage is not (QuizStage.Enrollment or QuizStage.AcceptingPlayers))
             {
                 user = null;
                 errorMessage = "Enrollment is closed.";
@@ -147,28 +150,18 @@ public sealed class QuizSessionService : IQuizSessionService
         Leave(user.UserName);
     }
 
-    public async Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, int questionTimeoutSeconds, bool progressiveScoring, CancellationToken cancellationToken = default)
+    public async Task<QuizActionResult> TryLoadQuestAsync(string userName, string? questionsUrl, CancellationToken cancellationToken = default)
     {
-        if (!QuestionTimeoutSettings.IsValid(questionTimeoutSeconds))
-        {
-            return QuizActionResult.Failed($"Question timeout must be between {QuestionTimeoutSettings.MinSeconds} and {QuestionTimeoutSettings.MaxSeconds} seconds.");
-        }
-
         lock (_lock)
         {
             if (!IsAdmin(userName))
             {
-                return QuizActionResult.Failed("Only admin can start the session.");
+                return QuizActionResult.Failed("Only admin can load the quest.");
             }
 
             if (_stage != QuizStage.Enrollment)
             {
-                return QuizActionResult.Failed("The session has already started.");
-            }
-
-            if (_users.PlayerCount == 0)
-            {
-                return QuizActionResult.Failed("At least one player is required to start.");
+                return QuizActionResult.Failed("Quest can only be loaded during enrollment.");
             }
         }
 
@@ -185,7 +178,35 @@ public sealed class QuizSessionService : IQuizSessionService
         {
             if (_stage != QuizStage.Enrollment)
             {
-                return QuizActionResult.Failed("The session has already started.");
+                return QuizActionResult.Failed("Quest can only be loaded during enrollment.");
+            }
+
+            _questMetadata = questionLoadResult.Metadata;
+            _questions = questionLoadResult.Questions;
+            _stage = QuizStage.AcceptingPlayers;
+        }
+
+        NotifyStateChanged();
+        return QuizActionResult.Succeeded();
+    }
+
+    public async Task<QuizActionResult> TryStartAsync(string userName, int questionTimeoutSeconds, bool progressiveScoring, CancellationToken cancellationToken = default)
+    {
+        if (!QuestionTimeoutSettings.IsValid(questionTimeoutSeconds))
+        {
+            return QuizActionResult.Failed($"Question timeout must be between {QuestionTimeoutSettings.MinSeconds} and {QuestionTimeoutSettings.MaxSeconds} seconds.");
+        }
+
+        lock (_lock)
+        {
+            if (!IsAdmin(userName))
+            {
+                return QuizActionResult.Failed("Only admin can start the session.");
+            }
+
+            if (_stage != QuizStage.AcceptingPlayers)
+            {
+                return QuizActionResult.Failed("Load quest before starting the session.");
             }
 
             if (_users.PlayerCount == 0)
@@ -193,7 +214,6 @@ public sealed class QuizSessionService : IQuizSessionService
                 return QuizActionResult.Failed("At least one player is required to start.");
             }
 
-            _questions = questionLoadResult.Questions;
             _questionTimeoutSeconds = questionTimeoutSeconds;
             _progressiveScoring = progressiveScoring;
             _users.ResetScores();
@@ -334,6 +354,8 @@ public sealed class QuizSessionService : IQuizSessionService
             _currentQuestionIndex + 1,
             _questions.Count,
             question.Text,
+            question.Image,
+            question.ImageAlt,
             answers,
             revealAnswers ? question.Explanation : string.Empty,
             selectedAnswer,
@@ -348,6 +370,7 @@ public sealed class QuizSessionService : IQuizSessionService
     private void ResetSessionCore()
     {
         StopTimerCore();
+        _questMetadata = null;
         _questions = [];
         _answers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         _stage = QuizStage.Enrollment;
@@ -475,4 +498,60 @@ public sealed class QuizSessionService : IQuizSessionService
     private static string Normalize(string userName) => userName.Trim();
 
     private void NotifyStateChanged() => StateChanged?.Invoke();
+
+    public QuestionView? GetPreviewQuestion(string userName, int questionIndex)
+    {
+        lock (_lock)
+        {
+            if (!IsAdmin(userName))
+            {
+                return null;
+            }
+
+            if (_stage != QuizStage.AcceptingPlayers)
+            {
+                return null;
+            }
+
+            if (questionIndex < 0 || questionIndex >= _questions.Count)
+            {
+                return null;
+            }
+
+            var question = _questions[questionIndex];
+            var answers = new List<AnswerOptionView>(4);
+            for (var index = 1; index <= 4; index++)
+            {
+                answers.Add(new AnswerOptionView(
+                    index,
+                    GetAnswerText(question, index),
+                    Votes: 0,
+                    IsCorrect: false));
+            }
+
+            return new QuestionView(
+                questionIndex + 1,
+                _questions.Count,
+                question.Text,
+                question.Image,
+                question.ImageAlt,
+                answers,
+                Explanation: string.Empty,
+                SelectedAnswer: null,
+                CorrectAnswer: null,
+                Responses: 0,
+                TotalPlayers: 0,
+                TimeoutSeconds: null,
+                DeadlineUtc: null,
+                Points: 0);
+        }
+    }
+
+    public int GetQuestionCount()
+    {
+        lock (_lock)
+        {
+            return _questions.Count;
+        }
+    }
 }

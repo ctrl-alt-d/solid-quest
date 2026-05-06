@@ -35,15 +35,65 @@ else
         @switch (snapshot.Stage)
         {
             case QuizStage.Enrollment:
-                <EnrollmentLobby Snapshot="@snapshot"
-                                 IsAdmin="@_isAdmin"
-                                 QuestionsUrl="@_questionsUrl"
-                                 QuestionsUrlChanged="HandleQuestionsUrlChanged"
-                                 QuestionTimeoutSeconds="@_questionTimeoutSeconds"
-                                 QuestionTimeoutSecondsChanged="HandleQuestionTimeoutChanged"
-                                 ProgressiveScoring="@_progressiveScoring"
-                                 ProgressiveScoringChanged="HandleProgressiveScoringChanged"
-                                 OnStart="HandleStartAsync" />
+            case QuizStage.AcceptingPlayers:
+                @if (_isPreviewMode && _isAdmin && snapshot.Stage == QuizStage.AcceptingPlayers)
+                {
+                    var previewQuestion = QuizSession.GetPreviewQuestion(_userName, _previewQuestionIndex);
+                    if (previewQuestion is not null)
+                    {
+                        <section class="card preview-card">
+                            <div class="preview-header">
+                                <p class="eyebrow">Preview Mode</p>
+                                <button class="secondary-button" @onclick="ExitPreviewMode">Exit Preview</button>
+                            </div>
+                            
+                            <div class="question-preview">
+                                <p class="eyebrow">Question @previewQuestion.Number / @previewQuestion.Total</p>
+                                <h2>@((MarkupString)previewQuestion.Text)</h2>
+                                @if (!string.IsNullOrWhiteSpace(previewQuestion.Image))
+                                {
+                                    <img src="@previewQuestion.Image" 
+                                         alt="@(previewQuestion.ImageAlt ?? "Question illustration")" 
+                                         class="question-image" />
+                                }
+                                
+                                <div class="preview-answers">
+                                    @foreach (var answer in previewQuestion.Answers.OrderBy(a => a.Index))
+                                    {
+                                        <div class="preview-answer">
+                                            <span class="answer-label-badge">@GetAnswerLabel(answer.Index)</span>
+                                            <span>@((MarkupString)answer.Text)</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="preview-navigation">
+                                <button class="secondary-button" 
+                                        @onclick="PreviousPreviewQuestion" 
+                                        disabled="@(_previewQuestionIndex == 0)">← Previous</button>
+                                <span class="preview-counter">@(_previewQuestionIndex + 1) / @QuizSession.GetQuestionCount()</span>
+                                <button class="secondary-button" 
+                                        @onclick="NextPreviewQuestion" 
+                                        disabled="@(_previewQuestionIndex >= QuizSession.GetQuestionCount() - 1)">Next →</button>
+                            </div>
+                        </section>
+                    }
+                }
+                else
+                {
+                    <EnrollmentLobby Snapshot="@snapshot"
+                                     IsAdmin="@_isAdmin"
+                                     QuestionsUrl="@_questionsUrl"
+                                     QuestionsUrlChanged="HandleQuestionsUrlChanged"
+                                     QuestionTimeoutSeconds="@_questionTimeoutSeconds"
+                                     QuestionTimeoutSecondsChanged="HandleQuestionTimeoutChanged"
+                                     ProgressiveScoring="@_progressiveScoring"
+                                     ProgressiveScoringChanged="HandleProgressiveScoringChanged"
+                                     OnLoad="HandleLoadAsync"
+                                     OnStart="HandleStartAsync"
+                                     OnPreview="EnterPreviewMode" />
+                }
                 break;
 
             case QuizStage.QuestionOpen when currentQuestion is not null:
@@ -88,6 +138,8 @@ else
     private string _userName = string.Empty;
     private bool _isAuthenticated;
     private bool _isAdmin;
+    private bool _isPreviewMode;
+    private int _previewQuestionIndex;
 
     [SupplyParameterFromQuery(Name = "loginError")]
     private string? LoginError { get; set; }
@@ -109,9 +161,23 @@ else
         QuizSession.StateChanged -= HandleQuizSessionChanged;
     }
 
+    private async Task HandleLoadAsync()
+    {
+        var result = await QuizSession.TryLoadQuestAsync(_userName, _questionsUrl);
+
+        if (!result.Success)
+        {
+            _actionError = result.ErrorMessage;
+        }
+        else
+        {
+            _actionError = string.Empty;
+        }
+    }
+
     private async Task HandleStartAsync()
     {
-        var result = await QuizSession.TryStartAsync(_userName, _questionsUrl, _questionTimeoutSeconds, _progressiveScoring);
+        var result = await QuizSession.TryStartAsync(_userName, _questionTimeoutSeconds, _progressiveScoring);
 
         if (!result.Success)
         {
@@ -188,6 +254,35 @@ else
         _ = InvokeAsync(StateHasChanged);
     }
 
+    private void EnterPreviewMode()
+    {
+        _isPreviewMode = true;
+        _previewQuestionIndex = 0;
+    }
+
+    private void ExitPreviewMode()
+    {
+        _isPreviewMode = false;
+        _previewQuestionIndex = 0;
+    }
+
+    private void PreviousPreviewQuestion()
+    {
+        if (_previewQuestionIndex > 0)
+        {
+            _previewQuestionIndex--;
+        }
+    }
+
+    private void NextPreviewQuestion()
+    {
+        var questionCount = QuizSession.GetQuestionCount();
+        if (_previewQuestionIndex < questionCount - 1)
+        {
+            _previewQuestionIndex++;
+        }
+    }
+
     private void UpdateUser(ClaimsPrincipal user)
     {
         _isAuthenticated = user.Identity?.IsAuthenticated == true;
@@ -218,4 +313,13 @@ else
         _loginError = LoginError ?? string.Empty;
         _loginUserName = LoginUserName ?? string.Empty;
     }
+
+    private static string GetAnswerLabel(int index) => index switch
+    {
+        1 => "A",
+        2 => "B",
+        3 => "C",
+        4 => "D",
+        _ => index.ToString()
+    };
 }

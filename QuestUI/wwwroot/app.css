@@ -227,19 +227,87 @@ input {
 
 .enrollment-card,
 .settings-card,
-.players-card {
+.players-card,
+.quest-preview-card {
     position: relative;
     overflow: hidden;
 }
 
 .enrollment-card::before,
 .settings-card::before,
-.players-card::before {
+.players-card::before,
+.quest-preview-card::before {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
     height: 3px;
     background: linear-gradient(90deg, rgba(255, 204, 0, 0.9), rgba(47, 128, 237, 0.8), rgba(39, 174, 96, 0.8));
+}
+
+.quest-preview-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+}
+
+.quest-preview-image {
+    max-width: 100%;
+    max-height: 280px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.preview-card {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2a5298 100%);
+    position: relative;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.question-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.preview-answers {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.preview-answer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.preview-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.preview-counter {
+    font-weight: 600;
+    font-size: 1.1rem;
 }
 
 .lobby-message-stack {
@@ -441,6 +509,16 @@ input {
     justify-content: space-between;
     gap: 1rem;
     align-items: start;
+}
+
+.question-image {
+    max-width: 100%;
+    max-height: 30vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 12px;
+    margin-top: 1rem;
 }
 
 .countdown-stack {

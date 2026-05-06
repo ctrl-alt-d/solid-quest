@@ -66,11 +66,9 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("moderator", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("moderator", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "moderator", progressiveScoring: true);
         var snapshot = session.GetSnapshot("Alice");
 
-        Assert.True(result.Success);
-        Assert.Equal(string.Empty, result.ErrorMessage);
         Assert.Equal(QuizStage.QuestionOpen, snapshot.Stage);
         Assert.NotNull(snapshot.CurrentQuestion);
         Assert.Equal(1, snapshot.CurrentQuestion!.Number);
@@ -90,7 +88,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
 
         var aliceAnswered = session.TrySubmitAnswer("Alice", 1, out var aliceError);
         var openSnapshot = session.GetSnapshot("Alice");
@@ -122,7 +120,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out var alice, out _);
         session.TryJoin("Bob", isAdmin: false, out var bob, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
 
         if (targetStage == QuizStage.QuestionOpen)
         {
@@ -150,7 +148,8 @@ public sealed class QuizSessionServiceTests
         Assert.Equal(string.Empty, errorMessage);
         Assert.Equal(QuizStage.Enrollment, snapshot.Stage);
         Assert.Null(snapshot.CurrentQuestion);
-        Assert.True(snapshot.CanStart);
+        Assert.False(snapshot.CanStart); // CanStart is false until quest is loaded
+        Assert.True(snapshot.CanLoad); // Can load a new quest after restart
         Assert.Equal(2, snapshot.PlayerCount);
         Assert.Equal(["Alice", "Bob"], snapshot.EnrolledPlayers);
         Assert.Equal(
@@ -171,7 +170,7 @@ public sealed class QuizSessionServiceTests
         var session = CreateSession();
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
 
         var restarted = session.TryRestart("Alice", out var errorMessage);
         var snapshot = session.GetSnapshot("Alice");
@@ -189,7 +188,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: false);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: false);
         session.TrySubmitAnswer("Alice", 1, out _);
         session.TrySubmitAnswer("Bob", 2, out _);
 
@@ -210,7 +209,7 @@ public sealed class QuizSessionServiceTests
         var session = CreateSession(timeProvider: timeProvider);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(1200));
         var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
@@ -234,7 +233,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(500));
         var firstAccepted = session.TrySubmitAnswer("Alice", 1, out var firstError);
@@ -257,7 +256,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: false);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: false);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(400));
         session.TrySubmitAnswer("Alice", 1, out _);
@@ -280,7 +279,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
 
         // Question 1: 12 points (correct answer is 1)
         session.TrySubmitAnswer("Alice", 1, out _);
@@ -309,7 +308,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
         session.TryJoin("Bob", isAdmin: false, out _);
-        await session.TryStartAsync("admin", null, QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: false);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: false);
 
         // Question 1: 1 point (correct answer is 1)
         session.TrySubmitAnswer("Alice", 1, out _);
@@ -332,13 +331,13 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public async Task TryStartAsync_ReturnsLoadError_WhenQuestionSourceFails()
+    public async Task TryLoadQuestAsync_ReturnsLoadError_WhenQuestionSourceFails()
     {
         var session = CreateSession(questionLoader: new StubQuestionLoader(QuestionLoadResult.Failed("Bad YAML.")));
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml", QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        var result = await session.TryLoadQuestAsync("admin", "https://example.com/questions.yaml");
 
         Assert.False(result.Success);
         Assert.Equal("Bad YAML.", result.ErrorMessage);
@@ -346,13 +345,15 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public async Task TryStartAsync_UsesUrlLoader_WhenUrlProvided()
+    public async Task TryLoadQuestAsync_UsesUrlLoader_WhenUrlProvided()
     {
         var loadedQuestions = new[]
         {
             new Question
             {
                 Text = "Remote question",
+                Image = null,
+                ImageAlt = null,
                 Answer1 = "A",
                 Answer2 = "B",
                 Answer3 = "C",
@@ -362,15 +363,15 @@ public sealed class QuizSessionServiceTests
             }
         };
 
-        var loader = new StubQuestionLoader(QuestionLoadResult.Succeeded(loadedQuestions));
+        var loader = new StubQuestionLoader(QuestionLoadResult.Succeeded(new QuestMetadata("Remote Quest", null, null), loadedQuestions));
         var session = CreateSession(questionLoader: loader);
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("admin", "https://example.com/questions.yaml", QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
+        await session.TryLoadQuestAsync("admin", "https://example.com/questions.yaml");
+        await session.TryStartAsync("admin", QuestionTimeoutSettings.DefaultSeconds, progressiveScoring: true);
         var snapshot = session.GetSnapshot("Alice");
 
-        Assert.True(result.Success);
         Assert.Equal("https://example.com/questions.yaml", loader.LoadedUrl);
         Assert.Equal("Remote question", snapshot.CurrentQuestion!.Text);
     }
@@ -382,10 +383,9 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var result = await session.TryStartAsync("admin", null, 45, progressiveScoring: true);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true, timeoutSeconds: 45);
         var snapshot = session.GetSnapshot("Alice");
 
-        Assert.True(result.Success);
         Assert.Equal(45, snapshot.CurrentQuestion!.TimeoutSeconds);
         Assert.Equal(DateTimeOffset.UnixEpoch.AddSeconds(45), snapshot.CurrentQuestion.DeadlineUtc);
     }
@@ -398,12 +398,13 @@ public sealed class QuizSessionServiceTests
         var session = CreateSession();
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
+        await session.TryLoadQuestAsync("admin", null);
 
-        var result = await session.TryStartAsync("admin", null, timeoutSeconds, progressiveScoring: true);
+        var result = await session.TryStartAsync("admin", timeoutSeconds, progressiveScoring: true);
 
         Assert.False(result.Success);
         Assert.Equal($"Question timeout must be between {QuestionTimeoutSettings.MinSeconds} and {QuestionTimeoutSettings.MaxSeconds} seconds.", result.ErrorMessage);
-        Assert.Equal(QuizStage.Enrollment, session.GetSnapshot().Stage);
+        Assert.Equal(QuizStage.AcceptingPlayers, session.GetSnapshot().Stage);
     }
 
     [Fact]
@@ -413,9 +414,7 @@ public sealed class QuizSessionServiceTests
         session.TryJoin("admin", isAdmin: true, out _);
         session.TryJoin("Alice", isAdmin: false, out _);
 
-        var started = await session.TryStartAsync("admin", null, QuestionTimeoutSettings.MinSeconds, progressiveScoring: true);
-
-        Assert.True(started.Success);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true, timeoutSeconds: QuestionTimeoutSettings.MinSeconds);
 
         await Task.Delay(TimeSpan.FromSeconds(QuestionTimeoutSettings.MinSeconds + 1));
 
@@ -432,12 +431,21 @@ public sealed class QuizSessionServiceTests
             timeProvider ?? new ManualTimeProvider(),
             Options.Create(new QuestOptions { AdminUserName = adminUserName ?? QuestOptions.DefaultAdminUserName }));
 
+    private static async Task LoadAndStartSessionAsync(QuizSessionService session, string adminUserName, bool progressiveScoring, int timeoutSeconds = QuestionTimeoutSettings.DefaultSeconds, string? questionsUrl = null)
+    {
+        await session.TryLoadQuestAsync(adminUserName, questionsUrl);
+        await session.TryStartAsync(adminUserName, timeoutSeconds, progressiveScoring);
+    }
+
     private static QuestionLoadResult CreateSampleQuestionLoadResult()
         => QuestionLoadResult.Succeeded(
+            new QuestMetadata("Sample Quest", null, null),
         [
             new Question
             {
                 Text = "Una <strong>interfície</strong>",
+                Image = null,
+                ImageAlt = null,
                 Answer1 = "És un contracte que defineix <strong>mètodes</strong> i propietats a implementar",
                 Answer2 = "Es pot instanciar amb <code>new()</code>",
                 Answer3 = "No pot implementar altres interfícies",
@@ -448,6 +456,8 @@ public sealed class QuizSessionServiceTests
             new Question
             {
                 Text = "Una classe abstracta <strong>NO</strong> pot",
+                Image = null,
+                ImageAlt = null,
                 Answer1 = "Instanciar-se amb <code>new()</code>",
                 Answer2 = "Heretar d'altres classes",
                 Answer3 = "Implementar interfícies",

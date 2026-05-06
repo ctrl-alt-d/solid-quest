@@ -12,6 +12,12 @@
         <div class="question-copy">
             <p class="eyebrow">Question @Question.Number / @Question.Total</p>
             <h2>@((MarkupString)Question.Text)</h2>
+            @if (!string.IsNullOrWhiteSpace(Question.Image))
+            {
+                <img src="@Question.Image" 
+                     alt="@(Question.ImageAlt ?? "Question illustration")" 
+                     class="question-image" />
+            }
         </div>
         <div>
             @if (GetCountdownState() is { } countdown)

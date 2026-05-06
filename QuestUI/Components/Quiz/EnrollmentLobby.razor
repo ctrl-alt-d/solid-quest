@@ -1,11 +1,18 @@
 <section class="enrollment-layout">
     <article class="card enrollment-card">
-        <p class="eyebrow">Enrollment</p>
+        <p class="eyebrow">@(Snapshot.Stage == QuizStage.Enrollment ? "Enrollment" : "Ready to Start")</p>
         <h2>@(Snapshot.PlayerCount == 0 ? "Waiting for players" : $"{Snapshot.PlayerCount} player(s) ready")</h2>
         <p class="muted">
             @if (IsAdmin)
             {
-                <span>Start when everyone has joined.</span>
+                @if (Snapshot.Stage == QuizStage.Enrollment)
+                {
+                    <span>Load a quest to begin.</span>
+                }
+                else
+                {
+                    <span>Start when everyone has joined.</span>
+                }
             }
             else
             {
@@ -16,26 +23,61 @@
         @if (IsAdmin)
         {
             <div class="lobby-message-stack">
-                <p class="muted">Leave the URL empty to use sample questions. Timeout applies only to this quest.</p>
+                @if (Snapshot.Stage == QuizStage.Enrollment)
+                {
+                    <p class="muted">Leave the URL empty to use sample questions.</p>
+                }
+                else
+                {
+                    <p class="muted">Timeout applies only to this quest.</p>
+                }
             </div>
-            <button class="primary-button" @onclick="OnStart" disabled="@(!Snapshot.CanStart)">Start session</button>
+            @if (Snapshot.Stage == QuizStage.Enrollment)
+            {
+                <button class="primary-button" @onclick="OnLoad" disabled="@(!Snapshot.CanLoad)">Load quest</button>
+            }
+            else
+            {
+                <button class="primary-button" @onclick="OnStart" disabled="@(!Snapshot.CanStart)">Start session</button>
+            }
         }
     </article>
+
+    @if (Snapshot.Stage == QuizStage.AcceptingPlayers && Snapshot.QuestMetadata is not null)
+    {
+        <article class="card quest-preview-card">
+            <p class="eyebrow">Quest Preview</p>
+            @if (!string.IsNullOrWhiteSpace(Snapshot.QuestMetadata.Image))
+            {
+                <img src="@Snapshot.QuestMetadata.Image" 
+                     alt="@(Snapshot.QuestMetadata.ImageAlt ?? Snapshot.QuestMetadata.Title)" 
+                     class="quest-preview-image" />
+            }
+            <h2>@Snapshot.QuestMetadata.Title</h2>
+            @if (IsAdmin)
+            {
+                <button class="secondary-button" @onclick="OnPreview">Preview questions</button>
+            }
+        </article>
+    }
 
     @if (IsAdmin)
     {
         <article class="card settings-card">
             <p class="eyebrow">Settings</p>
             <div class="settings-stack">
-                <label class="field-stack field-stack-wide" for="questions-url">
-                    <span class="field-stack-label">Questions URL</span>
-                    <input id="questions-url"
-                           class="text-input lobby-input"
-                           type="url"
-                           placeholder="https://example.com/questions.yaml"
-                           value="@QuestionsUrl"
-                           @oninput="HandleUrlChanged" />
-                </label>
+                @if (Snapshot.Stage == QuizStage.Enrollment)
+                {
+                    <label class="field-stack field-stack-wide" for="questions-url">
+                        <span class="field-stack-label">Questions URL</span>
+                        <input id="questions-url"
+                               class="text-input lobby-input"
+                               type="url"
+                               placeholder="https://example.com/questions.yaml"
+                               value="@QuestionsUrl"
+                               @oninput="HandleUrlChanged" />
+                    </label>
+                }
 
                 <label class="field-stack" for="question-timeout-seconds">
                     <span class="field-stack-label">Answer timeout (seconds)</span>
@@ -46,14 +88,16 @@
                            max="@QuestionTimeoutSettings.MaxSeconds"
                            step="1"
                            value="@QuestionTimeoutSeconds"
-                           @oninput="HandleTimeoutChanged" />
+                           @oninput="HandleTimeoutChanged"
+                           disabled="@(Snapshot.Stage == QuizStage.AcceptingPlayers)" />
                 </label>
 
                 <label class="field-stack field-stack-checkbox" for="progressive-scoring">
                     <input id="progressive-scoring"
                            type="checkbox"
                            checked="@ProgressiveScoring"
-                           @onchange="HandleProgressiveScoringChanged" />
+                           @onchange="HandleProgressiveScoringChanged"
+                           disabled="@(Snapshot.Stage == QuizStage.AcceptingPlayers)" />
                     <span class="field-stack-label">Progressive scoring</span>
                 </label>
             </div>
@@ -91,7 +135,13 @@
     public bool IsAdmin { get; set; }
 
     [Parameter]
+    public EventCallback OnLoad { get; set; }
+
+    [Parameter]
     public EventCallback OnStart { get; set; }
+
+    [Parameter]
+    public EventCallback OnPreview { get; set; }
 
     [Parameter]
     public string QuestionsUrl { get; set; } = string.Empty;
