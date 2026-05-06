@@ -177,7 +177,7 @@ public class QuestionLoader : IQuestionLoader
     image_alt: Gat amb cos de torrada que vola
     questions:
       - title: |
-            Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? 
+            Quí es aquest personatge?
         image: https://i.imgur.com/3Wjd4JG.jpeg
         image_alt: Gat amb cos de torrada que vola
         options:
@@ -195,17 +195,17 @@ public class QuestionLoader : IQuestionLoader
           Un video a yotube amb aquest gif va acumular milions de reproduccions
           i va convertir-se en un fenomen viral.
 
-      - title: "Una classe abstracta **NO** pot"
+      - title: "Six seven"
         image: null
         image_alt: null
         options:
-          - "Instanciar-se amb `new()`"
-          - "Heretar d'altres classes"
-          - "Implementar interfícies"
-          - "Tenir mètodes abstractes i implementats"
+          - "Encongir-se d'espatlles"
+          - "Fer la porra"
+          - "Mostrar indiferència"
+          - "Tenir son"
         correct_answer: 1
         explanation: |
-          Una classe abstracta no es pot instanciar directament.
+          Six seven no sé que significa. Però et poso un tall de codi.
 
           ```c#
           public abstract class UserBase : IUser
@@ -214,7 +214,7 @@ public class QuestionLoader : IQuestionLoader
               public int Edat { get; set; }
           }
           ```
-
+          És una classe abstracta:
           - Pot heretar d'una altra classe.
           - Pot implementar interfícies.
           - Pot tenir mètodes abstractes i implementats.
