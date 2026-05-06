@@ -1,4 +1,4 @@
-<header class="card top-bar">
+<header class="card top-bar @(IsCompact ? "top-bar-compact" : string.Empty)">
     <div>
         <p class="eyebrow">Connected as</p>
         <h1>@UserName</h1>
@@ -26,6 +26,9 @@
 
     [Parameter]
     public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public bool IsCompact { get; set; }
 
     [Parameter]
     public EventCallback OnRestart { get; set; }

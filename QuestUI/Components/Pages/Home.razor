@@ -7,18 +7,23 @@
 
 <PageTitle>Solid Quest</PageTitle>
 
-<div class="page-shell">
-    @if (!_isAuthenticated)
-    {
+@if (!_isAuthenticated)
+{
+    <div class="page-shell">
         <LoginForm UserName="@_loginUserName"
                    ErrorMessage="@_loginError" />
-    }
-    else
-    {
-        var snapshot = QuizSession.GetSnapshot(_userName);
-        var currentQuestion = snapshot.CurrentQuestion;
+    </div>
+}
+else
+{
+    var snapshot = QuizSession.GetSnapshot(_userName);
+    var currentQuestion = snapshot.CurrentQuestion;
 
-        <SessionHeader UserName="@_userName" IsAdmin="@_isAdmin" OnRestart="HandleRestartAsync" />
+    <div class="page-shell @GetPageShellClass(snapshot, currentQuestion)">
+        <SessionHeader UserName="@_userName"
+                       IsAdmin="@_isAdmin"
+                       IsCompact="@IsAdminProjectedQuestion(snapshot, currentQuestion)"
+                       OnRestart="HandleRestartAsync" />
 
         @if (!string.IsNullOrWhiteSpace(_actionError))
         {
@@ -64,8 +69,8 @@
                 </section>
                 break;
         }
-    }
-</div>
+    </div>
+}
 
 @code {
     private string _loginUserName = string.Empty;
@@ -181,6 +186,12 @@
             _actionError = string.Empty;
         }
     }
+
+    private string GetPageShellClass(QuizSessionSnapshot snapshot, QuestionView? currentQuestion) =>
+        IsAdminProjectedQuestion(snapshot, currentQuestion) ? "projection-shell" : string.Empty;
+
+    private bool IsAdminProjectedQuestion(QuizSessionSnapshot snapshot, QuestionView? currentQuestion) =>
+        _isAdmin && snapshot.Stage == QuizStage.QuestionOpen && currentQuestion is not null;
 
     private void SyncLoginFormFromQuery()
     {

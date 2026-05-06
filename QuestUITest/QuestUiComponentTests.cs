@@ -63,6 +63,31 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
+    public void QuestionCard_PlayerAnswersKeepVisibleLabelsAndAccessibleText()
+    {
+        var question = CreateQuestion(
+            new AnswerOptionView(1, "Use <code>SRP</code>", 2, false),
+            new AnswerOptionView(2, "Blue", 1, false),
+            new AnswerOptionView(3, "Green", 3, true),
+            new AnswerOptionView(4, "Yellow", 0, false));
+
+        var cut = Render<QuestionCard>(parameters => parameters
+            .Add(component => component.Question, question)
+            .Add(component => component.OnAnswer, EventCallback.Factory.Create<int>(this, _ => { })));
+
+        var buttons = cut.FindAll("button.answer-button");
+
+        buttons.Should().HaveCount(4);
+        var playerLabel = buttons[0].QuerySelector(".answer-option-label")!;
+
+        playerLabel.TextContent.Should().Be("A · Red");
+        playerLabel.ClassList.Should().Contain("answer-label-badge");
+        buttons[0].QuerySelector(".player-answer-text")!.InnerHtml.Should().Contain("<code>SRP</code>");
+        buttons[0].GetAttribute("aria-label").Should().Be("Answer A, Red: Use SRP");
+        buttons[3].GetAttribute("aria-label").Should().Be("Answer D, Yellow: Yellow");
+    }
+
+    [Fact]
     public void QuestionCard_RendersCountdown_WhenDeadlineIsPresent()
     {
         var question = CreateQuestion(
@@ -117,6 +142,31 @@ public class QuestUiComponentTests : BunitContext
 
         cut.Find(".countdown-progress").Should().NotBeNull();
         cut.Markup.Should().Contain("Players are answering");
+    }
+
+    [Fact]
+    public void QuestionCard_AdminQuestionOpen_RendersProjectedCardsWithLabelsNotButtons()
+    {
+        var question = CreateQuestion(
+            new AnswerOptionView(1, "Red", 0, false),
+            new AnswerOptionView(2, "Blue", 0, true),
+            new AnswerOptionView(3, "Green", 0, false),
+            new AnswerOptionView(4, "Yellow", 0, false));
+
+        var cut = Render<QuestionCard>(parameters => parameters
+            .Add(component => component.Question, question)
+            .Add(component => component.IsAdmin, true)
+            .Add(component => component.OnAnswer, EventCallback.Factory.Create<int>(this, _ => throw new InvalidOperationException("Admin answers must not be clickable."))));
+
+        var projectedCards = cut.FindAll(".projection-answer-card");
+
+        projectedCards.Should().HaveCount(4);
+        cut.FindAll("button.answer-button").Should().BeEmpty();
+        projectedCards[0].TextContent.Should().Contain("A · Red");
+        projectedCards[1].TextContent.Should().Contain("B · Blue");
+        projectedCards[2].TextContent.Should().Contain("C · Green");
+        projectedCards[3].TextContent.Should().Contain("D · Yellow");
+        projectedCards[0].QuerySelector(".projection-answer-label")!.ClassList.Should().Contain("answer-label-badge");
     }
 
     [Fact]
@@ -394,6 +444,26 @@ public class QuestUiComponentTests : BunitContext
         cut.Find("button.answer-button.answer-1").Click();
 
         quizSession.Received(1).TrySubmitAnswer(alice.UserName, 1, out Arg.Any<string>());
+    }
+
+    [Fact]
+    public void Home_AdminQuestionOpen_RendersProjectedCardsAndDoesNotSubmitAnswers()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var admin = CreateUser("moderator", isAdmin: true);
+        ConfigureHomeServices(quizSession);
+        AuthenticateAs(admin);
+
+        quizSession.GetSnapshot(admin.UserName).Returns(CreateQuestionOpenSnapshot());
+
+        var cut = Render<Home>();
+
+        cut.FindAll(".projection-answer-card").Should().HaveCount(4);
+        cut.FindAll("button.answer-button").Should().BeEmpty();
+        cut.FindAll(".top-bar-compact").Should().ContainSingle();
+        cut.Markup.Should().Contain("A · Red");
+
+        quizSession.DidNotReceive().TrySubmitAnswer(admin.UserName, Arg.Any<int>(), out Arg.Any<string>());
     }
 
     private static QuestionView CreateQuestion(params AnswerOptionView[] answers) => new(

@@ -1,9 +1,11 @@
 @using System.Globalization
+@using System.Net
+@using System.Text.RegularExpressions
 @implements IDisposable
 
-<section class="card question-card">
+<section class="card question-card @(IsAdmin ? "question-card-projection" : string.Empty)">
     <div class="question-header">
-        <div>
+        <div class="question-copy">
             <p class="eyebrow">Question @Question.Number / @Question.Total</p>
             <h2>@((MarkupString)Question.Text)</h2>
         </div>
@@ -28,7 +30,18 @@
 
     @if (IsAdmin)
     {
-        <p class="muted">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
+        <p class="muted projection-status">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
+
+        <div class="answers-grid projection-answers-grid" aria-label="Answer options being shown to players">
+            @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+            {
+                <article class="projection-answer-card @GetAnswerClass(answer.Index)"
+                         aria-label="@GetAnswerAriaLabel(answer)">
+                    <span class="answer-label-badge projection-answer-label">@GetAnswerLabel(answer.Index)</span>
+                    <span class="projection-answer-text">@((MarkupString)answer.Text)</span>
+                </article>
+            }
+        </div>
     }
     else if (Question.SelectedAnswer is int selectedAnswer)
     {
@@ -41,9 +54,10 @@
             {
                 <button class="answer-button @GetAnswerClass(answer.Index)"
                         type="button"
+                        aria-label="@GetAnswerAriaLabel(answer)"
                         @onclick="() => OnAnswer.InvokeAsync(answer.Index)">
-                    <span class="answer-option-label">Option @answer.Index</span>
-                    <span>@((MarkupString)answer.Text)</span>
+                    <span class="answer-option-label answer-label-badge">@GetAnswerLabel(answer.Index)</span>
+                    <span class="player-answer-text">@((MarkupString)answer.Text)</span>
                 </button>
             }
         </div>
@@ -80,6 +94,38 @@
     public void Dispose() => StopCountdown();
 
     private static string GetAnswerClass(int answerIndex) => $"answer-{answerIndex}";
+
+    private static string GetAnswerLetter(int answerIndex) => answerIndex switch
+    {
+        1 => "A",
+        2 => "B",
+        3 => "C",
+        4 => "D",
+        _ => answerIndex.ToString(CultureInfo.InvariantCulture)
+    };
+
+    private static string GetAnswerColorName(int answerIndex) => answerIndex switch
+    {
+        1 => "Red",
+        2 => "Blue",
+        3 => "Green",
+        4 => "Yellow",
+        _ => "Option"
+    };
+
+    private static string GetAnswerLabel(int answerIndex) => $"{GetAnswerLetter(answerIndex)} · {GetAnswerColorName(answerIndex)}";
+
+    private static string GetAnswerAriaLabel(AnswerOptionView answer)
+    {
+        var plainAnswerText = StripHtml(answer.Text);
+
+        return string.IsNullOrWhiteSpace(plainAnswerText)
+            ? $"Answer {GetAnswerLetter(answer.Index)}, {GetAnswerColorName(answer.Index)}"
+            : $"Answer {GetAnswerLetter(answer.Index)}, {GetAnswerColorName(answer.Index)}: {plainAnswerText}";
+    }
+
+    private static string StripHtml(string html) =>
+        WebUtility.HtmlDecode(Regex.Replace(html, "<[^>]+>", string.Empty)).Trim();
 
     private CountdownState? GetCountdownState()
     {

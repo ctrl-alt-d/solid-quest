@@ -66,6 +66,13 @@ input {
     padding: 2rem 1rem 4rem;
 }
 
+.projection-shell {
+    max-width: min(1600px, 100vw);
+    min-height: 100vh;
+    padding: clamp(0.5rem, 1.4vh, 1rem) clamp(0.75rem, 2vw, 2rem) clamp(0.75rem, 1.6vh, 1.25rem);
+    box-sizing: border-box;
+}
+
 .grid {
     display: grid;
     gap: 1rem;
@@ -98,6 +105,23 @@ input {
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
+}
+
+.top-bar-compact {
+    margin-bottom: clamp(0.45rem, 1vh, 0.75rem);
+    padding: clamp(0.55rem, 1vh, 0.8rem) clamp(0.85rem, 1.5vw, 1.1rem);
+    border-radius: 16px;
+}
+
+.top-bar-compact .eyebrow {
+    margin-bottom: 0.15rem;
+    font-size: 0.68rem;
+}
+
+.top-bar-compact h1 {
+    display: inline;
+    margin: 0;
+    font-size: clamp(1rem, 1.4vw, 1.3rem);
 }
 
 .top-bar-actions {
@@ -299,11 +323,42 @@ input {
     gap: 0.35rem;
 }
 
+.projection-answer-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: clamp(0.55rem, 1.4vh, 1rem);
+    min-height: clamp(130px, 20vh, 260px);
+    padding: clamp(1rem, 2.2vw, 2rem);
+    border: clamp(3px, 0.35vw, 6px) solid var(--answer-color, rgba(255, 255, 255, 0.2));
+    border-radius: clamp(18px, 2vw, 32px);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--answer-color, #fff) 18%, transparent), rgba(255, 255, 255, 0.06));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 42px rgba(0, 0, 0, 0.22);
+}
+
 .answer-option-label {
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+}
+
+.projection-answer-label {
+    width: fit-content;
+    padding: 0.28em 0.62em;
+    border-radius: 999px;
+    background: var(--answer-color, rgba(255, 255, 255, 0.24));
+    color: #100e2f;
+    font-size: clamp(1rem, 2.2vw, 2.1rem);
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.projection-answer-text {
+    font-size: clamp(1.45rem, 3.2vw, 3.4rem);
+    font-weight: 800;
+    line-height: 1.12;
 }
 
 .answers-grid {
@@ -313,8 +368,38 @@ input {
     margin-top: 1rem;
 }
 
+.projection-answers-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.75rem, 1.6vw, 1.5rem);
+    align-content: stretch;
+    margin-top: clamp(0.75rem, 1.5vh, 1.25rem);
+}
+
 .question-card {
     margin-bottom: 1rem;
+}
+
+.question-card-projection {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    min-height: calc(100vh - clamp(5.5rem, 11vh, 8rem));
+    margin-bottom: 0;
+    padding: clamp(1rem, 2vw, 2rem);
+}
+
+.question-card-projection .question-header h2 {
+    margin: 0;
+    font-size: clamp(2rem, 4.8vw, 5.8rem);
+    line-height: 1.05;
+}
+
+.question-card-projection .eyebrow {
+    font-size: clamp(0.8rem, 1.4vw, 1.15rem);
+}
+
+.projection-status {
+    margin: clamp(0.5rem, 1vh, 0.85rem) 0 0;
+    font-size: clamp(0.9rem, 1.25vw, 1.2rem);
 }
 
 .question-header {
@@ -599,7 +684,11 @@ input {
 .answer-button.answer-1,
 .answer-button.answer-2,
 .answer-button.answer-3,
-.answer-button.answer-4 {
+.answer-button.answer-4,
+.projection-answer-card.answer-1,
+.projection-answer-card.answer-2,
+.projection-answer-card.answer-3,
+.projection-answer-card.answer-4 {
     border-color: var(--answer-color);
 }
 
@@ -741,6 +830,41 @@ input {
         width: 100%;
     }
 
+    .question-card:not(.question-card-projection) {
+        padding: 1rem;
+    }
+
+    .question-card:not(.question-card-projection) .question-copy,
+    .question-card:not(.question-card-projection) .player-answer-text {
+        display: none;
+    }
+
+    .question-card:not(.question-card-projection) .answers-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-top: 0.85rem;
+    }
+
+    .question-card:not(.question-card-projection) .answer-button {
+        align-items: center;
+        justify-content: center;
+        min-height: clamp(7rem, 22vh, 10rem);
+        padding: 1rem 0.75rem;
+        text-align: center;
+    }
+
+    .question-card:not(.question-card-projection) .answer-option-label {
+        width: fit-content;
+        padding: 0.28em 0.62em;
+        border-radius: 999px;
+        background: var(--answer-color, rgba(255, 255, 255, 0.24));
+        color: #100e2f;
+        font-size: clamp(1rem, 2.2vw, 2.1rem);
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
     .podium-grid {
         grid-template-columns: 1fr;
         align-items: stretch;
@@ -756,6 +880,15 @@ input {
 
     .results-chart {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .projection-shell,
+    .question-card-projection {
+        min-height: auto;
+    }
+
+    .projection-answers-grid {
+        grid-template-columns: 1fr;
     }
 
     .timeout-input {
