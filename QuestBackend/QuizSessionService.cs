@@ -4,7 +4,8 @@ namespace QuestBackend;
 
 public sealed class QuizSessionService : IQuizSessionService
 {
-    private const int CorrectAnswerPoints = 1;
+    private const int StaticModeCorrectAnswerPoints = 1;
+    private const int ProgressiveModeFirstQuestionPoints = 12;
 
     private readonly IUsers _users;
     private readonly IQuestionLoader _questionLoader;
@@ -19,6 +20,7 @@ public sealed class QuizSessionService : IQuizSessionService
     private int _currentQuestionIndex = -1;
     private DateTimeOffset? _currentQuestionOpenedAt;
     private int _questionTimeoutSeconds = QuestionTimeoutSettings.DefaultSeconds;
+    private bool _progressiveScoring = true;
 
     public QuizSessionService(IUsers users, IQuestionLoader questionLoader, TimeProvider timeProvider, IOptions<QuestOptions> questOptions)
     {
@@ -145,7 +147,7 @@ public sealed class QuizSessionService : IQuizSessionService
         Leave(user.UserName);
     }
 
-    public async Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, int questionTimeoutSeconds, CancellationToken cancellationToken = default)
+    public async Task<QuizActionResult> TryStartAsync(string userName, string? questionsUrl, int questionTimeoutSeconds, bool progressiveScoring, CancellationToken cancellationToken = default)
     {
         if (!QuestionTimeoutSettings.IsValid(questionTimeoutSeconds))
         {
@@ -193,6 +195,7 @@ public sealed class QuizSessionService : IQuizSessionService
 
             _questions = questionLoadResult.Questions;
             _questionTimeoutSeconds = questionTimeoutSeconds;
+            _progressiveScoring = progressiveScoring;
             _users.ResetScores();
             _currentQuestionIndex = 0;
             OpenQuestionCore();
@@ -338,7 +341,8 @@ public sealed class QuizSessionService : IQuizSessionService
             _answers.Count,
             totalPlayers,
             _stage == QuizStage.QuestionOpen ? _questionTimeoutSeconds : null,
-            GetCurrentQuestionDeadlineUtc());
+            GetCurrentQuestionDeadlineUtc(),
+            CalculatePointsForQuestion(_currentQuestionIndex));
     }
 
     private void ResetSessionCore()
@@ -397,12 +401,35 @@ public sealed class QuizSessionService : IQuizSessionService
         _stage = QuizStage.QuestionResults;
 
         var question = _questions[_currentQuestionIndex];
+        var pointsForCurrentQuestion = CalculatePointsForQuestion(_currentQuestionIndex);
+        
         foreach (var userName in _answers
                      .Where(entry => entry.Value == question.CorrectAnswer)
                      .Select(entry => entry.Key))
         {
-            _users.AddScore(userName, CorrectAnswerPoints);
+            _users.AddScore(userName, pointsForCurrentQuestion);
         }
+    }
+
+    private int CalculatePointsForQuestion(int questionIndex)
+    {
+        if (!_progressiveScoring)
+        {
+            return StaticModeCorrectAnswerPoints;
+        }
+
+        if (questionIndex == 0)
+        {
+            return ProgressiveModeFirstQuestionPoints;
+        }
+
+        var points = (double)ProgressiveModeFirstQuestionPoints;
+        for (var i = 0; i < questionIndex; i++)
+        {
+            points += points * 0.5;
+        }
+
+        return (int)Math.Truncate(points);
     }
 
     private bool ShouldRevealResults()

@@ -183,6 +183,18 @@ input {
     margin: 0;
 }
 
+.field-stack-checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.field-stack-checkbox input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+}
+
 .field-stack-wide {
     width: 100%;
 }
@@ -379,12 +391,34 @@ input {
     margin-bottom: 1rem;
 }
 
+.question-points-banner {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.points-badge {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    background: linear-gradient(135deg, #f2c94c 0%, #f39c12 100%);
+    color: #130f40;
+    font-size: 1.25rem;
+    font-weight: 800;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(242, 201, 76, 0.3);
+}
+
 .question-card-projection {
     display: grid;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     min-height: calc(100vh - clamp(5.5rem, 11vh, 8rem));
     margin-bottom: 0;
     padding: clamp(1rem, 2vw, 2rem);
+}
+
+.question-card-projection .points-badge {
+    font-size: clamp(1.25rem, 2vw, 2rem);
+    padding: clamp(0.5rem, 1vh, 0.75rem) clamp(1rem, 2vw, 2rem);
 }
 
 .question-card-projection .question-header h2 {
@@ -476,6 +510,23 @@ input {
     list-style: none;
     padding: 0;
     margin: 0;
+}
+
+.leaderboard-separator {
+    border: 0;
+    border-top: 2px dashed rgba(255, 255, 255, 0.2);
+    margin: 1rem 0;
+}
+
+.leaderboard-own-position {
+    margin-top: 0.5rem;
+}
+
+.leaderboard-own-position li {
+    background: rgba(242, 201, 76, 0.1);
+    border-radius: 8px;
+    padding: 0.8rem 0.75rem;
+    border-bottom: 1px solid rgba(242, 201, 76, 0.3);
 }
 
 .player-chip-list {

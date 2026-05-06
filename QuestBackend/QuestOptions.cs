@@ -15,6 +15,8 @@ public sealed class QuestOptions
             : value.Trim();
     }
 
+    public bool ProgressiveScoring { get; set; } = true;
+
     public bool IsAdminUserName(string? userName)
         => !string.IsNullOrWhiteSpace(userName)
            && string.Equals(userName.Trim(), AdminUserName, StringComparison.OrdinalIgnoreCase);

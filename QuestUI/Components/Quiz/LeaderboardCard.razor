@@ -6,8 +6,10 @@
     }
     else
     {
+        var topEntries = IsAdmin ? Entries.Take(5).ToList() : GetPlayerLeaderboard();
+        
         <ol class="leaderboard-list">
-            @foreach (var entry in Entries)
+            @foreach (var entry in topEntries)
             {
                 <li>
                     <span>@entry.UserName</span>
@@ -15,10 +17,47 @@
                 </li>
             }
         </ol>
+        
+        @if (!IsAdmin && UserPosition > 5)
+        {
+            <hr class="leaderboard-separator" />
+            <ol class="leaderboard-list leaderboard-own-position" start="@UserPosition">
+                <li>
+                    <span>@UserName</span>
+                    <strong>@UserScore</strong>
+                </li>
+            </ol>
+        }
     }
 </article>
 
 @code {
     [Parameter, EditorRequired]
     public IReadOnlyList<LeaderboardEntry> Entries { get; set; } = Array.Empty<LeaderboardEntry>();
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public string? UserName { get; set; }
+
+    private int UserPosition { get; set; }
+    private int UserScore { get; set; }
+
+    private List<LeaderboardEntry> GetPlayerLeaderboard()
+    {
+        var topFive = Entries.Take(5).ToList();
+        
+        if (!string.IsNullOrWhiteSpace(UserName))
+        {
+            var userEntry = Entries.FirstOrDefault(e => string.Equals(e.UserName, UserName, StringComparison.OrdinalIgnoreCase));
+            if (userEntry is not null)
+            {
+                UserPosition = Entries.ToList().IndexOf(userEntry) + 1;
+                UserScore = userEntry.Score;
+            }
+        }
+        
+        return topFive;
+    }
 }

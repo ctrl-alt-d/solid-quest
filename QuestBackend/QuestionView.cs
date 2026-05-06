@@ -13,4 +13,5 @@ public sealed record QuestionView(
     int Responses,
     int TotalPlayers,
     int? TimeoutSeconds,
-    DateTimeOffset? DeadlineUtc);
+    DateTimeOffset? DeadlineUtc,
+    int Points);

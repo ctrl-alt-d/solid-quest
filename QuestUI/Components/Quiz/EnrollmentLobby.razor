@@ -48,6 +48,14 @@
                            value="@QuestionTimeoutSeconds"
                            @oninput="HandleTimeoutChanged" />
                 </label>
+
+                <label class="field-stack field-stack-checkbox" for="progressive-scoring">
+                    <input id="progressive-scoring"
+                           type="checkbox"
+                           checked="@ProgressiveScoring"
+                           @onchange="HandleProgressiveScoringChanged" />
+                    <span class="field-stack-label">Progressive scoring</span>
+                </label>
             </div>
         </article>
     }
@@ -97,6 +105,12 @@
     [Parameter]
     public EventCallback<int> QuestionTimeoutSecondsChanged { get; set; }
 
+    [Parameter]
+    public bool ProgressiveScoring { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> ProgressiveScoringChanged { get; set; }
+
     private Task HandleUrlChanged(ChangeEventArgs args)
         => QuestionsUrlChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
 
@@ -104,4 +118,7 @@
         => QuestionTimeoutSecondsChanged.InvokeAsync(int.TryParse(args.Value?.ToString(), out var timeoutSeconds)
             ? timeoutSeconds
             : QuestionTimeoutSeconds);
+
+    private Task HandleProgressiveScoringChanged(ChangeEventArgs args)
+        => ProgressiveScoringChanged.InvokeAsync(args.Value is bool value && value);
 }

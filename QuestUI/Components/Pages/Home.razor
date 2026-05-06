@@ -41,6 +41,8 @@ else
                                  QuestionsUrlChanged="HandleQuestionsUrlChanged"
                                  QuestionTimeoutSeconds="@_questionTimeoutSeconds"
                                  QuestionTimeoutSecondsChanged="HandleQuestionTimeoutChanged"
+                                 ProgressiveScoring="@_progressiveScoring"
+                                 ProgressiveScoringChanged="HandleProgressiveScoringChanged"
                                  OnStart="HandleStartAsync" />
                 break;
 
@@ -53,7 +55,9 @@ else
                     <ResultCard Question="@currentQuestion"
                                 IsCompleted="@(snapshot.Stage == QuizStage.Completed)" />
 
-                    <LeaderboardCard Entries="@snapshot.Leaderboard" />
+                    <LeaderboardCard Entries="@snapshot.Leaderboard" 
+                                     IsAdmin="@_isAdmin" 
+                                     UserName="@_userName" />
 
                     <ExplainCard Question="@currentQuestion"
                                  IsAdmin="@_isAdmin"
@@ -65,7 +69,9 @@ else
             case QuizStage.Completed:
                 <section class="results-stack">
                     <WinnerPodium Entries="@snapshot.Leaderboard" />
-                    <LeaderboardCard Entries="@snapshot.Leaderboard" />
+                    <LeaderboardCard Entries="@snapshot.Leaderboard" 
+                                     IsAdmin="@_isAdmin" 
+                                     UserName="@_userName" />
                 </section>
                 break;
         }
@@ -78,6 +84,7 @@ else
     private string _actionError = string.Empty;
     private string _questionsUrl = string.Empty;
     private int _questionTimeoutSeconds = QuestionTimeoutSettings.DefaultSeconds;
+    private bool _progressiveScoring = true;
     private string _userName = string.Empty;
     private bool _isAuthenticated;
     private bool _isAdmin;
@@ -104,7 +111,7 @@ else
 
     private async Task HandleStartAsync()
     {
-        var result = await QuizSession.TryStartAsync(_userName, _questionsUrl, _questionTimeoutSeconds);
+        var result = await QuizSession.TryStartAsync(_userName, _questionsUrl, _questionTimeoutSeconds, _progressiveScoring);
 
         if (!result.Success)
         {
@@ -125,6 +132,12 @@ else
     private Task HandleQuestionTimeoutChanged(int questionTimeoutSeconds)
     {
         _questionTimeoutSeconds = questionTimeoutSeconds;
+        return Task.CompletedTask;
+    }
+
+    private Task HandleProgressiveScoringChanged(bool progressiveScoring)
+    {
+        _progressiveScoring = progressiveScoring;
         return Task.CompletedTask;
     }
 

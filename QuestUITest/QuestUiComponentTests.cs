@@ -344,14 +344,14 @@ public class QuestUiComponentTests : BunitContext
 
         quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
         quizSession
-            .TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, Arg.Any<CancellationToken>())
+            .TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, true, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(QuizActionResult.Succeeded()));
 
         var cut = Render<Home>();
 
         cut.Find("button.primary-button").Click();
 
-        await quizSession.Received(1).TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, Arg.Any<CancellationToken>());
+        await quizSession.Received(1).TryStartAsync(admin.UserName, string.Empty, QuestionTimeoutSettings.DefaultSeconds, true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -364,7 +364,7 @@ public class QuestUiComponentTests : BunitContext
 
         quizSession.GetSnapshot(admin.UserName).Returns(CreateEnrollmentSnapshot(canStart: true, enrolledPlayers: ["Alice"]));
         quizSession
-            .TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, Arg.Any<CancellationToken>())
+            .TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, true, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(QuizActionResult.Succeeded()));
 
         var cut = Render<Home>();
@@ -373,7 +373,7 @@ public class QuestUiComponentTests : BunitContext
         cut.Find("#question-timeout-seconds").Input("45");
         cut.Find("button.primary-button").Click();
 
-        await quizSession.Received(1).TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, Arg.Any<CancellationToken>());
+        await quizSession.Received(1).TryStartAsync(admin.UserName, "https://example.com/questions.yaml", 45, true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -477,7 +477,8 @@ public class QuestUiComponentTests : BunitContext
         Responses: answers.Sum(answer => answer.Votes),
         TotalPlayers: 10,
         TimeoutSeconds: null,
-        DeadlineUtc: null);
+        DeadlineUtc: null,
+        Points: 12);
 
     private static QuestionView CreateTimedQuestion(int timeoutSeconds, int remainingSeconds) => CreateQuestion(
         new AnswerOptionView(1, "Red", 0, false),

@@ -4,6 +4,10 @@
 @implements IDisposable
 
 <section class="card question-card @(IsAdmin ? "question-card-projection" : string.Empty)">
+    <div class="question-points-banner">
+        <span class="points-badge">@Question.Points pts</span>
+    </div>
+    
     <div class="question-header">
         <div class="question-copy">
             <p class="eyebrow">Question @Question.Number / @Question.Total</p>
