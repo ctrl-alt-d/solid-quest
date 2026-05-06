@@ -173,14 +173,13 @@ public class QuestionLoader : IQuestionLoader
 
     private const string Questions = """
     title: "Memes i Programació"
-    image: null
-    image_alt: null
+    image: https://i.imgur.com/3Wjd4JG.jpeg
+    image_alt: Gat amb cos de torrada que vola
     questions:
       - title: |
-            Quí es aquest personatge?
-            ![Gat amb cos de torrada que vola](https://i.imgur.com/3Wjd4JG.jpeg)
-        image: null
-        image_alt: null
+            Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? Quí es aquest personatge? 
+        image: https://i.imgur.com/3Wjd4JG.jpeg
+        image_alt: Gat amb cos de torrada que vola
         options:
           - "Nyan Cat"
           - "Cat Nyan"

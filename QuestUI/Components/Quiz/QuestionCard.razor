@@ -3,74 +3,129 @@
 @using System.Text.RegularExpressions
 @implements IDisposable
 
-<section class="card question-card @(IsAdmin ? "question-card-projection" : string.Empty)">
+@{
+    var hasImage = !string.IsNullOrWhiteSpace(Question.Image);
+    var projectionClass = IsAdmin ? $"question-card-projection {(hasImage ? "has-projection-image" : "")}" : string.Empty;
+}
+
+<section class="card question-card @projectionClass">
     <div class="question-points-banner">
         <span class="points-badge">@Question.Points pts</span>
     </div>
     
-    <div class="question-header">
-        <div class="question-copy">
-            <p class="eyebrow">Question @Question.Number / @Question.Total</p>
-            <h2>@((MarkupString)Question.Text)</h2>
-            @if (!string.IsNullOrWhiteSpace(Question.Image))
-            {
-                <img src="@Question.Image" 
-                     alt="@(Question.ImageAlt ?? "Question illustration")" 
-                     class="question-image" />
-            }
-        </div>
-        <div>
-            @if (GetCountdownState() is { } countdown)
-            {
-                <div class="countdown-stack">
-                    <p class="eyebrow countdown-text">@countdown.RemainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
-                    <div class="countdown-progress"
-                         role="progressbar"
-                         aria-label="Remaining answer time"
-                         aria-valuemin="0"
-                         aria-valuemax="100"
-                         aria-valuenow="@countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)">
-                        <div class="countdown-progress-fill @countdown.ProgressClass"
-                             style="width: @countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)%"></div>
-                    </div>
+    @if (IsAdmin && hasImage)
+    {
+        <div class="projection-with-image-layout">
+            <div class="projection-top-row">
+                <div class="projection-image-container">
+                    <img src="@Question.Image" 
+                         alt="@(Question.ImageAlt ?? "Question illustration")" 
+                         class="projection-question-image" />
                 </div>
-            }
+                
+                <div class="projection-content">
+                    <div class="question-header-compact">
+                        <p class="eyebrow">Question @Question.Number / @Question.Total</p>
+                        <h2>@((MarkupString)Question.Text)</h2>
+                        @if (GetCountdownState() is { } countdown)
+                        {
+                            <div class="countdown-stack">
+                                <p class="eyebrow countdown-text">@countdown.RemainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
+                                <div class="countdown-progress"
+                                     role="progressbar"
+                                     aria-label="Remaining answer time"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100"
+                                     aria-valuenow="@countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)">
+                                    <div class="countdown-progress-fill @countdown.ProgressClass"
+                                         style="width: @countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    
+                    <p class="muted projection-status">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
+                </div>
+            </div>
+            
+            <div class="answers-grid projection-answers-grid" aria-label="Answer options being shown to players">
+                @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+                {
+                    <article class="projection-answer-card @GetAnswerClass(answer.Index)"
+                             aria-label="@GetAnswerAriaLabel(answer)">
+                        <span class="answer-label-badge projection-answer-label">@GetAnswerLabel(answer.Index)</span>
+                        <span class="projection-answer-text">@((MarkupString)answer.Text)</span>
+                    </article>
+                }
+            </div>
         </div>
-    </div>
-
-    @if (IsAdmin)
-    {
-        <p class="muted projection-status">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
-
-        <div class="answers-grid projection-answers-grid" aria-label="Answer options being shown to players">
-            @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
-            {
-                <article class="projection-answer-card @GetAnswerClass(answer.Index)"
-                         aria-label="@GetAnswerAriaLabel(answer)">
-                    <span class="answer-label-badge projection-answer-label">@GetAnswerLabel(answer.Index)</span>
-                    <span class="projection-answer-text">@((MarkupString)answer.Text)</span>
-                </article>
-            }
-        </div>
-    }
-    else if (Question.SelectedAnswer is int selectedAnswer)
-    {
-        <p class="success-text">You answered option @selectedAnswer. Waiting for reveal.</p>
     }
     else
     {
-        <div class="answers-grid">
-            @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
-            {
-                <button class="answer-button @GetAnswerClass(answer.Index)"
-                        type="button"
-                        aria-label="@GetAnswerAriaLabel(answer)"
-                        @onclick="() => OnAnswer.InvokeAsync(answer.Index)">
-                    <span class="answer-option-label answer-label-badge">@GetAnswerLabel(answer.Index)</span>
-                    <span class="player-answer-text">@((MarkupString)answer.Text)</span>
-                </button>
-            }
+        <div class="question-header">
+            <div class="question-copy">
+                <p class="eyebrow">Question @Question.Number / @Question.Total</p>
+                <h2>@((MarkupString)Question.Text)</h2>
+                @if (!string.IsNullOrWhiteSpace(Question.Image))
+                {
+                    <img src="@Question.Image" 
+                         alt="@(Question.ImageAlt ?? "Question illustration")" 
+                         class="question-image" />
+                }
+            </div>
+            <div>
+                @if (GetCountdownState() is { } countdown)
+                {
+                    <div class="countdown-stack">
+                        <p class="eyebrow countdown-text">@countdown.RemainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
+                        <div class="countdown-progress"
+                             role="progressbar"
+                             aria-label="Remaining answer time"
+                             aria-valuemin="0"
+                             aria-valuemax="100"
+                             aria-valuenow="@countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)">
+                            <div class="countdown-progress-fill @countdown.ProgressClass"
+                                 style="width: @countdown.ProgressPercent.ToString(CultureInfo.InvariantCulture)%"></div>
+                        </div>
+                    </div>
+                }
+            </div>
         </div>
+
+        @if (IsAdmin)
+        {
+            <p class="muted projection-status">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
+
+            <div class="answers-grid projection-answers-grid" aria-label="Answer options being shown to players">
+                @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+                {
+                    <article class="projection-answer-card @GetAnswerClass(answer.Index)"
+                             aria-label="@GetAnswerAriaLabel(answer)">
+                        <span class="answer-label-badge projection-answer-label">@GetAnswerLabel(answer.Index)</span>
+                        <span class="projection-answer-text">@((MarkupString)answer.Text)</span>
+                    </article>
+                }
+            </div>
+        }
+        else if (Question.SelectedAnswer is int selectedAnswer)
+        {
+            <p class="success-text">You answered option @selectedAnswer. Waiting for reveal.</p>
+        }
+        else
+        {
+            <div class="answers-grid">
+                @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+                {
+                    <button class="answer-button @GetAnswerClass(answer.Index)"
+                            type="button"
+                            aria-label="@GetAnswerAriaLabel(answer)"
+                            @onclick="() => OnAnswer.InvokeAsync(answer.Index)">
+                        <span class="answer-option-label answer-label-badge">@GetAnswerLabel(answer.Index)</span>
+                        <span class="player-answer-text">@((MarkupString)answer.Text)</span>
+                    </button>
+                }
+            </div>
+        }
     }
 </section>
 

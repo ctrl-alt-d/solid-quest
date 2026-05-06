@@ -17,10 +17,12 @@ public sealed class QuestionLoaderTests
 
         Assert.True(result.Success);
         Assert.Contains("Quí es aquest personatge?", firstQuestion.Text);
-        Assert.Contains("<img src=\"https://i.imgur.com/3Wjd4JG.jpeg\" alt=\"Gat amb cos de torrada que vola\"", firstQuestion.Text);
+        Assert.Equal("https://i.imgur.com/3Wjd4JG.jpeg", firstQuestion.Image);
+        Assert.Equal("Gat amb cos de torrada que vola", firstQuestion.ImageAlt);
         Assert.Contains("Nyan Cat", firstQuestion.Answer1);
         Assert.Equal("Una classe abstracta <strong>NO</strong> pot", secondQuestion.Text);
         Assert.Contains("<code>new()</code>", secondQuestion.Answer1);
+        Assert.Null(secondQuestion.Image);
     }
 
     [Fact]
