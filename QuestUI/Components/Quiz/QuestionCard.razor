@@ -5,15 +5,19 @@
 
 @{
     var hasImage = !string.IsNullOrWhiteSpace(Question.Image);
+    var useProjectionLayout = IsAdmin && (IsPreview || hasImage);
     var projectionClass = IsAdmin ? $"question-card-projection {(hasImage ? "has-projection-image" : "")}" : string.Empty;
 }
 
 <section class="card question-card @projectionClass">
-    <div class="question-points-banner">
-        <span class="points-badge">@Question.Points pts</span>
-    </div>
+    @if (!IsPreview)
+    {
+        <div class="question-points-banner">
+            <span class="points-badge">@Question.Points pts</span>
+        </div>
+    }
     
-    @if (IsAdmin && hasImage)
+    @if (useProjectionLayout)
     {
         <div class="projection-with-image-layout">
             <div class="projection-top-row">
@@ -27,7 +31,7 @@
                     <div class="question-header-compact">
                         <p class="eyebrow">Question @Question.Number / @Question.Total</p>
                         <h2>@((MarkupString)Question.Text)</h2>
-                        @if (GetCountdownState() is { } countdown)
+                        @if (!IsPreview && GetCountdownState() is { } countdown)
                         {
                             <div class="countdown-stack">
                                 <p class="eyebrow countdown-text">@countdown.RemainingSeconds.ToString(CultureInfo.InvariantCulture)s left</p>
@@ -44,7 +48,10 @@
                         }
                     </div>
                     
-                    <p class="muted projection-status">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
+                    @if (!IsPreview)
+                    {
+                        <p class="muted projection-status">Players are answering. Results reveal automatically on timeout or when everyone finishes.</p>
+                    }
                 </div>
             </div>
             
@@ -137,6 +144,9 @@
 
     [Parameter]
     public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public bool IsPreview { get; set; }
 
     [Parameter]
     public EventCallback<int> OnAnswer { get; set; }

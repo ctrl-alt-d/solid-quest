@@ -29,7 +29,7 @@
                 }
                 else
                 {
-                    <p class="muted">Timeout applies only to this quest.</p>
+                    <p class="muted">Quest loaded. Preview questions or start when everyone has joined.</p>
                 }
             </div>
             @if (Snapshot.Stage == QuizStage.Enrollment)
@@ -63,11 +63,11 @@
 
     @if (IsAdmin)
     {
-        <article class="card settings-card">
-            <p class="eyebrow">Settings</p>
-            <div class="settings-stack">
-                @if (Snapshot.Stage == QuizStage.Enrollment)
-                {
+        @if (Snapshot.Stage == QuizStage.Enrollment)
+        {
+            <article class="card settings-card">
+                <p class="eyebrow">Settings</p>
+                <div class="settings-stack">
                     <label class="field-stack field-stack-wide" for="questions-url">
                         <span class="field-stack-label">Questions URL</span>
                         <input id="questions-url"
@@ -77,31 +77,29 @@
                                value="@QuestionsUrl"
                                @oninput="HandleUrlChanged" />
                     </label>
-                }
 
-                <label class="field-stack" for="question-timeout-seconds">
-                    <span class="field-stack-label">Answer timeout (seconds)</span>
-                    <input id="question-timeout-seconds"
-                           class="text-input lobby-input timeout-input"
-                           type="number"
-                           min="@QuestionTimeoutSettings.MinSeconds"
-                           max="@QuestionTimeoutSettings.MaxSeconds"
-                           step="1"
-                           value="@QuestionTimeoutSeconds"
-                           @oninput="HandleTimeoutChanged"
-                           disabled="@(Snapshot.Stage == QuizStage.AcceptingPlayers)" />
-                </label>
+                    <label class="field-stack" for="question-timeout-seconds">
+                        <span class="field-stack-label">Answer timeout (seconds)</span>
+                        <input id="question-timeout-seconds"
+                               class="text-input lobby-input timeout-input"
+                               type="number"
+                               min="@QuestionTimeoutSettings.MinSeconds"
+                               max="@QuestionTimeoutSettings.MaxSeconds"
+                               step="1"
+                               value="@QuestionTimeoutSeconds"
+                               @oninput="HandleTimeoutChanged" />
+                    </label>
 
-                <label class="field-stack field-stack-checkbox" for="progressive-scoring">
-                    <input id="progressive-scoring"
-                           type="checkbox"
-                           checked="@ProgressiveScoring"
-                           @onchange="HandleProgressiveScoringChanged"
-                           disabled="@(Snapshot.Stage == QuizStage.AcceptingPlayers)" />
-                    <span class="field-stack-label">Progressive scoring</span>
-                </label>
-            </div>
-        </article>
+                    <label class="field-stack field-stack-checkbox" for="progressive-scoring">
+                        <input id="progressive-scoring"
+                               type="checkbox"
+                               checked="@ProgressiveScoring"
+                               @onchange="HandleProgressiveScoringChanged" />
+                        <span>Progressive scoring</span>
+                    </label>
+                </div>
+            </article>
+        }
     }
 
     <article class="card players-card">

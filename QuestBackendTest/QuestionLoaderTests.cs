@@ -20,8 +20,8 @@ public sealed class QuestionLoaderTests
         Assert.Equal("https://i.imgur.com/3Wjd4JG.jpeg", firstQuestion.Image);
         Assert.Equal("Gat amb cos de torrada que vola", firstQuestion.ImageAlt);
         Assert.Contains("Nyan Cat", firstQuestion.Answer1);
-        Assert.Equal("Una classe abstracta <strong>NO</strong> pot", secondQuestion.Text);
-        Assert.Contains("<code>new()</code>", secondQuestion.Answer1);
+        Assert.Equal("Six seven", secondQuestion.Text);
+        Assert.Contains("Encongir-se d", secondQuestion.Answer1);
         Assert.Null(secondQuestion.Image);
     }
 

@@ -694,7 +694,7 @@ public class QuestUiComponentTests : BunitContext
         await previewButton.ClickAsync(new());
         
         cut.Markup.Should().Contain("What is your favorite color?");
-        cut.FindAll(".preview-answer").Should().HaveCount(4);
+        cut.FindAll(".projection-answer-card").Should().HaveCount(4);
         cut.Markup.Should().NotContain("points-badge");
         cut.Markup.Should().NotContain("countdown");
     }

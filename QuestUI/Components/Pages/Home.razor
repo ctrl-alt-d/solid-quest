@@ -41,36 +41,15 @@ else
                     var previewQuestion = QuizSession.GetPreviewQuestion(_userName, _previewQuestionIndex);
                     if (previewQuestion is not null)
                     {
-                        var hasImage = !string.IsNullOrWhiteSpace(previewQuestion.Image);
                         <section class="card preview-card">
                             <div class="preview-header">
                                 <p class="eyebrow">Preview Mode</p>
                                 <button class="secondary-button" @onclick="ExitPreviewMode">Exit Preview</button>
                             </div>
                             
-                            <div class="question-preview @(hasImage ? "has-image" : "")">
-                                @if (hasImage)
-                                {
-                                    <img src="@previewQuestion.Image" 
-                                         alt="@(previewQuestion.ImageAlt ?? "Question illustration")" 
-                                         class="preview-question-image" />
-                                }
-                                
-                                <div class="preview-question-header">
-                                    <p class="eyebrow">Question @previewQuestion.Number / @previewQuestion.Total</p>
-                                    <h2>@((MarkupString)previewQuestion.Text)</h2>
-                                </div>
-                                
-                                <div class="preview-answers">
-                                    @foreach (var answer in previewQuestion.Answers.OrderBy(a => a.Index))
-                                    {
-                                        <div class="preview-answer">
-                                            <span class="answer-label-badge">@GetAnswerLabel(answer.Index)</span>
-                                            <span>@((MarkupString)answer.Text)</span>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
+                            <QuestionCard Question="@previewQuestion" 
+                                          IsAdmin="true" 
+                                          IsPreview="true" />
 
                             <div class="preview-navigation">
                                 <button class="secondary-button" 
@@ -317,13 +296,4 @@ else
         _loginError = LoginError ?? string.Empty;
         _loginUserName = LoginUserName ?? string.Empty;
     }
-
-    private static string GetAnswerLabel(int index) => index switch
-    {
-        1 => "A",
-        2 => "B",
-        3 => "C",
-        4 => "D",
-        _ => index.ToString()
-    };
 }
