@@ -394,12 +394,14 @@ input {
 }
 
 .projection-answer-card {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: clamp(0.25rem, 0.6vh, 0.45rem);
     min-height: clamp(75px, 12vh, 140px);
     padding: clamp(0.5rem, 1.1vw, 1rem);
+    padding-top: clamp(1rem, 2vh, 1.5rem);
     border: clamp(2px, 0.25vw, 3px) solid var(--answer-color, rgba(255, 255, 255, 0.2));
     border-radius: clamp(12px, 1.4vw, 20px);
     background: linear-gradient(135deg, color-mix(in srgb, var(--answer-color, #fff) 18%, transparent), rgba(255, 255, 255, 0.06));
@@ -420,6 +422,10 @@ input {
 }
 
 .projection-answer-label {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: fit-content;
     padding: 0.2em 0.48em;
     border-radius: 999px;
@@ -503,11 +509,33 @@ input {
     overflow: hidden;
 }
 
+.projection-single-layout {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: clamp(0.4rem, 0.8vh, 0.7rem);
+    height: 100%;
+    overflow: hidden;
+}
+
 .projection-top-row {
     display: grid;
     grid-template-columns: 45% 55%;
     gap: clamp(0.75rem, 1.5vw, 1.5rem);
+    padding: clamp(0.75rem, 1.5vw, 1.25rem);
+    border: clamp(2px, 0.25vw, 3px) solid rgba(255, 255, 255, 0.3);
+    border-radius: clamp(12px, 1.4vw, 20px);
+    background: rgba(255, 255, 255, 0.04);
     overflow: hidden;
+}
+
+.projection-question-box {
+    padding: clamp(0.75rem, 1.5vw, 1.25rem);
+    border: clamp(2px, 0.25vw, 3px) solid rgba(255, 255, 255, 0.3);
+    border-radius: clamp(12px, 1.4vw, 20px);
+    background: rgba(255, 255, 255, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.3rem, 0.6vh, 0.5rem);
 }
 
 .projection-image-container {
@@ -907,6 +935,7 @@ input {
 .projection-answer-card.answer-3,
 .projection-answer-card.answer-4 {
     border-color: var(--answer-color);
+    margin-top: 0.5rem;
 }
 
 .answer-button.answer-4 {
