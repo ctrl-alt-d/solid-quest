@@ -70,9 +70,9 @@ public class QuestionLoader : IQuestionLoader
         {
             payload = deserializer.Deserialize<QuestionsYaml>(yaml);
         }
-        catch (YamlException)
+        catch (YamlException e)
         {
-            return QuestionLoadResult.Failed("Questions YAML could not be parsed.");
+            return QuestionLoadResult.Failed("Questions YAML could not be parsed: " + e.Message);
         }
 
         if (payload?.Questions is null)

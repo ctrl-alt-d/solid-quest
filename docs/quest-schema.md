@@ -7,14 +7,14 @@ Solid Quest loads quests from **YAML files** hosted anywhere (GitHub raw, gist, 
 ```yaml
 title: string (required)
 image: string (optional, URL)
-imageAlt: string (optional, accessibility description)
+image_alt: string (optional, accessibility description)
 
 questions:
-  - text: string (required, supports Markdown)
+  - title: string (required, supports Markdown)
     image: string (optional, URL)
-    imageAlt: string (optional, accessibility description)
+    image_alt: string (optional, accessibility description)
     options: array of 4 strings (required, supports Markdown)
-    correct: integer 1-4 (required, 1-indexed)
+    correct_answer: integer 1-4 (required, 1-indexed)
     explanation: string (optional, supports Markdown)
 ```
 
@@ -26,17 +26,17 @@ questions:
 |-------|------|----------|-------------|
 | `title` | string | ✅ Yes | Quest title shown in preview and enrollment screen |
 | `image` | string (URL) | ⬜ No | Cover image URL (shown during enrollment, before first question) |
-| `imageAlt` | string | ⬜ No | Alt text for cover image (accessibility) |
+| `image_alt` | string | ⬜ No | Alt text for cover image (accessibility) |
 
 ### Question Fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `text` | string | ✅ Yes | Question text (Markdown supported: bold, italic, code, links) |
+| `title` | string | ✅ Yes | Question text (Markdown supported: bold, italic, code, links) |
 | `image` | string (URL) | ⬜ No | Question illustration URL (displayed alongside question text) |
-| `imageAlt` | string | ⬜ No | Alt text for question image (accessibility) |
+| `image_alt` | string | ⬜ No | Alt text for question image (accessibility) |
 | `options` | array[4] of string | ✅ Yes | Exactly 4 answer options (Markdown supported) |
-| `correct` | integer (1-4) | ✅ Yes | Index of correct answer (1 = first option, 2 = second, etc.) |
+| `correct_answer` | integer (1-4) | ✅ Yes | Index of correct answer (1 = first option, 2 = second, etc.) |
 | `explanation` | string | ⬜ No | Shown after question closes (Markdown supported, including code blocks) |
 
 ## Markdown Support
@@ -78,10 +78,10 @@ Renders with syntax highlighting in dark macOS-style code windows.
 
 ### Accessibility
 
-- **Always provide `imageAlt`** when using `image` field
+- **Always provide `image_alt`** when using `image` field
 - Alt text should describe the content, not the file name
-- Good: `imageAlt: "Diagram showing TCP three-way handshake"`
-- Bad: `imageAlt: "image.png"`
+- Good: `image_alt: "Diagram showing TCP three-way handshake"`
+- Bad: `image_alt: "image.png"`
 
 ### Image Hosting
 
@@ -94,17 +94,17 @@ Renders with syntax highlighting in dark macOS-style code windows.
 
 ### Required Fields
 - Quest must have `title`
-- Each question must have `text`, `options` (exactly 4), and `correct`
+- Each question must have `title`, `options` (exactly 4), and `correct_answer`
 
 ### Constraints
-- `correct` must be 1, 2, 3, or 4 (1-indexed)
+- `correct_answer` must be 1, 2, 3, or 4 (1-indexed)
 - `options` must have exactly 4 items (no more, no less)
 - Empty strings are invalid for required fields
 
 ### Optional Fields
-- `image` and `imageAlt` can be omitted (null or missing)
+- `image` and `image_alt` can be omitted (null or missing)
 - `explanation` can be omitted (no explanation shown)
-- If `image` is provided, `imageAlt` is strongly recommended but not enforced
+- If `image` is provided, `image_alt` is strongly recommended but not enforced
 
 ## Example: Minimal Quest
 
@@ -112,13 +112,14 @@ Renders with syntax highlighting in dark macOS-style code windows.
 title: Quick Math Quiz
 
 questions:
-  - text: What is 2 + 2?
+  - title: What is 2 + 2?
     options:
       - "3"
       - "4"
       - "5"
       - "22"
-    correct: 2
+    correct_answer: 2
+    explanation: Basic arithmetic. The answer is 4.
 ```
 
 ## Example: Full-Featured Quest

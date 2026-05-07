@@ -1,108 +1,18 @@
 title: Tech Memes & Programming Culture
 image: https://placehold.co/1920x1080/1a1a2e/ffffff?text=Tech+Memes+Quest
-imageAlt: Pixelated retro gaming style banner with text 'Tech Memes Quest'
+image_alt: Pixelated retro gaming style banner with text 'Tech Memes Quest'
 
 questions:
-  - text: |
-      What does "It works on my machine" actually mean?
-    image: https://placehold.co/800x600/2d3748/ffffff?text=Works+On+My+Machine
-    imageAlt: Comic showing developer shrugging with laptop, surrounded by broken production servers
-    options:
-      - "The code is perfect, blame DevOps"
-      - "I didn't test in production and now it's your problem"
-      - "My local environment is special and I refuse to use Docker"
-      - "All of the above"
-    correct: 4
-    explanation: |
-      **All of the above** — the classic developer excuse trifecta.
-      
-      The meme originates from the eternal conflict between local development and production environments. 
-      It's why we have:
-      
-      ```dockerfile
-      FROM node:18-alpine
-      WORKDIR /app
-      COPY package*.json ./
-      RUN npm ci --only=production
-      COPY . .
-      CMD ["node", "server.js"]
-      ```
-      
-      **Docker**: Making "it works on my machine" obsolete since 2013... in theory.
-
-  - text: |
-      Complete the phrase: "There are only two hard things in Computer Science: cache invalidation and ___"
-    image: https://placehold.co/800x600/2d3748/ffffff?text=Naming+Things
-    imageAlt: Confused developer staring at code with variable names like 'data', 'temp', 'thing'
-    options:
-      - "naming things"
-      - "off-by-one errors"
-      - "cache invalidation"
-      - "explaining to your manager why you need 3 days to 'just add a button'"
-    correct: 1
-    explanation: |
-      **Naming things** — the famous Phil Karlton quote.
-      
-      The full quote is:
-      > "There are only two hard things in Computer Science: cache invalidation and naming things."
-      
-      Some variations add:
-      > "...and off-by-one errors."
-      
-      Evidence of bad naming:
-      ```javascript
-      const data = getData();
-      const data2 = processData(data);
-      const finalData = data2.map(x => x.value);
-      const result = finalData; // why
-      ```
-      
-      **Pro tip**: If you name a variable `temp`, `data`, or `thing`, you owe the next developer a coffee.
-
-  - text: |
-      What is the true meaning of "YAGNI"?
-    image: https://placehold.co/800x600/2d3748/ffffff?text=YAGNI+Principle
-    imageAlt: Developer deleting half of their over-engineered code with satisfaction
-    options:
-      - "You Aren't Gonna Need It"
-      - "Yet Another Generic Node Implementation"
-      - "Your Architecture's Getting Needlessly Intricate"
-      - "Yesterday's Algorithms Gone, New Ideas"
-    correct: 1
-    explanation: |
-      **You Aren't Gonna Need It** — an XP/Agile principle that says: don't build features you *think* you'll need later.
-      
-      Classic YAGNI violation:
-      ```python
-      class AbstractFactoryBuilderManagerProxy:
-          """Supports future multi-tenancy, blockchain, and AI"""
-          def __init__(self):
-              self.strategy = None
-              self.observer = None
-              self.blockchain_adapter = None  # "just in case"
-          
-          def process(self, data):
-              return data  # lol
-      ```
-      
-      **Real YAGNI:**
-      ```python
-      def process(data):
-          return data
-      ```
-      
-      Add complexity when you *actually* need it, not when you *imagine* you might.
-
-  - text: |
+  - title: |
       What does "works in Chrome" mean in 2026?
     image: https://placehold.co/800x600/2d3748/ffffff?text=Browser+Wars
-    imageAlt: Browser logos fighting in a battle royale, Chrome wearing a crown
+    image_alt: Browser logos fighting in a battle royale, Chrome wearing a crown
     options:
       - "Works everywhere because all browsers are Chromium now"
       - "I didn't test Safari and neither should you"
       - "I used -webkit- prefixes exclusively"
       - "The CSS Grid I wrote 6 years ago still doesn't work in IE11"
-    correct: 1
+    correct_answer: 1
     explanation: |
       **Works everywhere** — because Chrome, Edge, Brave, Opera, Vivaldi... all use **Blink** (Chromium's engine).
       
