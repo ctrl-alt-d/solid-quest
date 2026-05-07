@@ -127,19 +127,19 @@ questions:
 ```yaml
 title: Advanced TypeScript Patterns
 image: https://example.com/typescript-logo.png
-imageAlt: TypeScript logo with blue background
+image_alt: TypeScript logo with blue background
 
 questions:
-  - text: |
+  - title: |
       What does the `readonly` modifier do in TypeScript?
     image: https://example.com/readonly-example.png
-    imageAlt: Code snippet showing readonly array declaration
+    image_alt: Code snippet showing readonly array declaration
     options:
       - "Prevents variable reassignment"
       - "Prevents object property mutation"
       - "Makes the variable immutable at runtime"
       - "Only works with arrays"
-    correct: 2
+    correct_answer: 2
     explanation: |
       The `readonly` modifier prevents **property mutation** at compile time.
       
@@ -156,13 +156,13 @@ questions:
       
       It's a compile-time check only — no runtime enforcement.
 
-  - text: Which utility type makes all properties optional?
+  - title: Which utility type makes all properties optional?
     options:
       - "`Partial<T>`"
       - "`Required<T>`"
       - "`Readonly<T>`"
       - "`Pick<T, K>`"
-    correct: 1
+    correct_answer: 1
     explanation: |
       **`Partial<T>`** makes all properties optional.
       
