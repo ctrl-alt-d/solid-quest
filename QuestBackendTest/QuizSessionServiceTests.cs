@@ -33,6 +33,45 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
+    public void TryJoin_AdminDuplicate_RejoinsExistingAdminUser()
+    {
+        var session = CreateSession(adminUserName: "moderator");
+
+        var firstJoin = session.TryJoin("moderator", isAdmin: true, out var firstAdmin, out var firstError);
+        var secondJoin = session.TryJoin(" Moderator ", isAdmin: true, out var secondAdmin, out var secondError);
+        var snapshot = session.GetSnapshot();
+
+        Assert.True(firstJoin);
+        Assert.NotNull(firstAdmin);
+        Assert.Equal(string.Empty, firstError);
+        Assert.True(secondJoin);
+        Assert.NotNull(secondAdmin);
+        Assert.Same(firstAdmin, secondAdmin);
+        Assert.Equal(firstAdmin!.RestoreToken, secondAdmin!.RestoreToken);
+        Assert.Equal(string.Empty, secondError);
+        Assert.True(snapshot.HasAdmin);
+        Assert.Empty(snapshot.EnrolledPlayers);
+    }
+
+    [Fact]
+    public void TryJoin_AdminDuplicateOfPlayer_DoesNotPromoteExistingUser()
+    {
+        var session = CreateSession(adminUserName: "moderator");
+
+        session.TryJoin("Alice", isAdmin: false, out var player, out _);
+        var adminJoin = session.TryJoin(" Alice ", isAdmin: true, out var adminUser, out var adminError);
+        var snapshot = session.GetSnapshot();
+
+        Assert.False(adminJoin);
+        Assert.Null(adminUser);
+        Assert.Equal("Username 'Alice' is already taken.", adminError);
+        Assert.NotNull(player);
+        Assert.False(player!.IsAdmin);
+        Assert.False(snapshot.HasAdmin);
+        Assert.Equal(new[] { "Alice" }, snapshot.EnrolledPlayers);
+    }
+
+    [Fact]
     public void TryRestoreUser_ReturnsExistingUser_ByRestoreToken()
     {
         var session = CreateSession();

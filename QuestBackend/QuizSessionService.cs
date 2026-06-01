@@ -67,6 +67,8 @@ public sealed class QuizSessionService : IQuizSessionService
 
         var trimmedUserName = userName.Trim();
 
+        var stateChanged = false;
+
         lock (_lock)
         {
             if (!isAdmin && _stage is not (QuizStage.Enrollment or QuizStage.AcceptingPlayers))
@@ -83,15 +85,35 @@ public sealed class QuizSessionService : IQuizSessionService
                 return false;
             }
 
+            if (isAdmin && _users.TryGetByUserName(trimmedUserName, out var existingUser))
+            {
+                if (existingUser!.IsAdmin)
+                {
+                    user = existingUser;
+                    errorMessage = string.Empty;
+                    return true;
+                }
+
+                user = null;
+                errorMessage = $"Username '{trimmedUserName}' is already taken.";
+                return false;
+            }
+
             if (!_users.TryAdd(trimmedUserName, isAdmin, out user, out var duplicateMessage))
             {
                 errorMessage = duplicateMessage!;
                 return false;
             }
+
+            stateChanged = true;
         }
 
         errorMessage = string.Empty;
-        NotifyStateChanged();
+        if (stateChanged)
+        {
+            NotifyStateChanged();
+        }
+
         return true;
     }
 

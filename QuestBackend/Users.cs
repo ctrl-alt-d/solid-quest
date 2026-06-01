@@ -62,6 +62,14 @@ public sealed class Users : IUsers
         }
     }
 
+    public bool TryGetByUserName(string userName, out User? user)
+    {
+        lock (_lock)
+        {
+            return _users.TryGetValue(Normalize(userName), out user);
+        }
+    }
+
     public bool TryGetByRestoreToken(string restoreToken, out User? user)
     {
         lock (_lock)

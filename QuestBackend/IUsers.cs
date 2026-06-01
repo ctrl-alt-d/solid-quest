@@ -6,6 +6,7 @@ public interface IUsers
     bool TryAdd(string userName, bool isAdmin, out User? user, out string? errorMessage);
     void Remove(string userName);
     bool Contains(string userName);
+    bool TryGetByUserName(string userName, out User? user);
     bool TryGetByRestoreToken(string restoreToken, out User? user);
     int PlayerCount { get; }
     bool HasAdmin { get; }
