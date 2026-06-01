@@ -7,6 +7,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/Dotnet.gitignore
 
+publish/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -55,3 +57,7 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Local production deployment files
+/QuestUI/appsettings.Production.json
+/publish-solidquest.sh
