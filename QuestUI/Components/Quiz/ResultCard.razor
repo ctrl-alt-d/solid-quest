@@ -1,12 +1,12 @@
 <article class="card">
-    <p class="eyebrow">@(IsCompleted ? "Final results" : $"Question {Question.Number} results")</p>
+    <p class="eyebrow">@ResultsTitle</p>
     <h2>@((MarkupString)Question.Text)</h2>
     <div class="results-chart">
-        @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+        @foreach (var answer in OrderedAnswers)
         {
             var percentage = GetVotePercentage(answer);
 
-            <div class="result-bar-card @GetAnswerClass(answer.Index) @(answer.IsCorrect ? "correct-result" : string.Empty)">
+            <div class="result-bar-card @GetAnswerClass(answer.Index) @GetCorrectResultClass(answer)">
                 <span class="result-votes">@answer.Votes</span>
 
                 <div class="result-bar-track" aria-hidden="true">
@@ -16,7 +16,7 @@
                 <div class="result-answer-copy">
                     <strong>@((MarkupString)answer.Text)</strong>
                     <span class="result-percent">@percentage%</span>
-                    @if (answer.IsCorrect)
+                    @if (!Question.IsSurvey && answer.IsCorrect)
                     {
                         <span class="correct-label">Correct</span>
                     }
@@ -35,6 +35,15 @@
 
     private int TotalVotes => Question.Answers.Sum(answer => answer.Votes);
 
+    private string ResultsTitle => Question.IsSurvey switch
+    {
+        true => $"Question {Question.Number} survey results",
+        false when IsCompleted => "Final results",
+        _ => $"Question {Question.Number} results"
+    };
+
+    private IEnumerable<AnswerOptionView> OrderedAnswers => Question.Answers.OrderBy(answer => answer.Index);
+
     private int GetVotePercentage(AnswerOptionView answer)
     {
         if (TotalVotes <= 0)
@@ -46,4 +55,8 @@
     }
 
     private static string GetAnswerClass(int answerIndex) => $"answer-{answerIndex}";
+
+    private string GetCorrectResultClass(AnswerOptionView answer) => !Question.IsSurvey && answer.IsCorrect
+        ? "correct-result"
+        : string.Empty;
 }

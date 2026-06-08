@@ -85,6 +85,31 @@ public sealed class QuestionLoaderTests
     }
 
     [Fact]
+    public async Task LoadQuestionsFromUrlAsync_AcceptsCorrectAnswerZero_AsSurveyQuestion()
+    {
+        var yaml = """
+            title: "Remote Quest"
+            questions:
+              - title: "What do you prefer?"
+                options:
+                  - "One"
+                  - "Two"
+                  - "Three"
+                  - "Four"
+                correct_answer: 0
+                explanation: "Opinion question."
+            """;
+
+        var loader = CreateLoader(HttpStatusCode.OK, yaml);
+
+        var result = await loader.LoadQuestionsFromUrlAsync("https://example.com/questions.yaml");
+
+        Assert.True(result.Success);
+        Assert.True(result.Questions[0].IsSurvey);
+        Assert.Equal(0, result.Questions[0].CorrectAnswer);
+    }
+
+    [Fact]
     public async Task LoadQuestionsFromUrlAsync_ReturnsFriendlyError_WhenUrlIsInvalid()
     {
         var result = await CreateLoader().LoadQuestionsFromUrlAsync("not-a-url");

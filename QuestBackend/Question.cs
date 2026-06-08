@@ -16,4 +16,6 @@ public class Question
     public required string Answer4 { get; set; }
     public required int CorrectAnswer { get; set; }
     public required string Explanation { get; set; }
+
+    public bool IsSurvey => CorrectAnswer == 0;
 }

@@ -3,29 +3,23 @@
 @using System.Text.RegularExpressions
 @implements IDisposable
 
-@{
-    var hasImage = !string.IsNullOrWhiteSpace(Question.Image);
-    var useProjectionLayout = IsAdmin;
-    var projectionClass = IsAdmin ? $"question-card-projection {(hasImage ? "has-projection-image" : "")}" : string.Empty;
-}
-
-<section class="card question-card @projectionClass">
+<section class="card question-card @ProjectionClass">
     @if (!IsPreview)
     {
         <div class="question-points-banner">
-            <span class="points-badge">@Question.Points pts</span>
+            <span class="points-badge @PointsBadgeClass">@PointsBadgeText</span>
         </div>
     }
     
-    @if (useProjectionLayout)
+    @if (UseProjectionLayout)
     {
-        @if (hasImage)
+        @if (HasImage)
         {
             <div class="projection-with-image-layout">
                 <div class="projection-top-row">
                     <div class="projection-image-container">
-                        <img src="@Question.Image" 
-                             alt="@(Question.ImageAlt ?? "Question illustration")" 
+                        <img src="@Question.Image"
+                             alt="@QuestionImageAlt"
                              class="projection-question-image" />
                     </div>
                     
@@ -58,7 +52,7 @@
                 </div>
                 
                 <div class="answers-grid projection-answers-grid" aria-label="Answer options being shown to players">
-                    @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+                    @foreach (var answer in OrderedAnswers)
                     {
                         <article class="projection-answer-card @GetAnswerClass(answer.Index)"
                                  aria-label="@GetAnswerAriaLabel(answer)">
@@ -100,7 +94,7 @@
                 </div>
 
                 <div class="answers-grid projection-answers-grid" aria-label="Answer options being shown to players">
-                    @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+                    @foreach (var answer in OrderedAnswers)
                     {
                         <article class="projection-answer-card @GetAnswerClass(answer.Index)"
                                  aria-label="@GetAnswerAriaLabel(answer)">
@@ -120,8 +114,8 @@
                 <h2>@((MarkupString)Question.Text)</h2>
                 @if (!string.IsNullOrWhiteSpace(Question.Image))
                 {
-                    <img src="@Question.Image" 
-                         alt="@(Question.ImageAlt ?? "Question illustration")" 
+                    <img src="@Question.Image"
+                         alt="@QuestionImageAlt"
                          class="question-image" />
                 }
             </div>
@@ -151,7 +145,7 @@
         else
         {
             <div class="answers-grid">
-                @foreach (var answer in Question.Answers.OrderBy(answer => answer.Index))
+                @foreach (var answer in OrderedAnswers)
                 {
                     <button class="answer-button @GetAnswerClass(answer.Index)"
                             type="button"
@@ -180,6 +174,24 @@
 
     [Parameter]
     public EventCallback<int> OnAnswer { get; set; }
+
+    private bool HasImage => !string.IsNullOrWhiteSpace(Question.Image);
+
+    private bool UseProjectionLayout => IsAdmin;
+
+    private string ProjectionClass => IsAdmin
+        ? $"question-card-projection {(HasImage ? "has-projection-image" : string.Empty)}"
+        : string.Empty;
+
+    private string PointsBadgeClass => Question.IsSurvey ? "survey-badge" : string.Empty;
+
+    private string PointsBadgeText => Question.IsSurvey
+        ? "Enquesta"
+        : $"{Question.Points.ToString(CultureInfo.InvariantCulture)} pts";
+
+    private string QuestionImageAlt => Question.ImageAlt ?? "Question illustration";
+
+    private IEnumerable<AnswerOptionView> OrderedAnswers => Question.Answers.OrderBy(answer => answer.Index);
 
     protected override void OnParametersSet()
     {

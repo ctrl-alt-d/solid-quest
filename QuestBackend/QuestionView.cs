@@ -16,4 +16,5 @@ public sealed record QuestionView(
     int TotalPlayers,
     int? TimeoutSeconds,
     DateTimeOffset? DeadlineUtc,
-    int Points);
+    int Points,
+    bool IsSurvey = false);

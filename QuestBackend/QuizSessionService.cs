@@ -301,7 +301,10 @@ public sealed class QuizSessionService : IQuizSessionService
             }
 
             _answers[normalizedUserName] = answerIndex;
-            _users.AddAnswerTime(normalizedUserName, GetElapsedMillisecondsForCurrentQuestion());
+            if (!CurrentQuestionIsSurvey())
+            {
+                _users.AddAnswerTime(normalizedUserName, GetElapsedMillisecondsForCurrentQuestion());
+            }
 
             if (ShouldRevealResults())
             {
@@ -360,6 +363,7 @@ public sealed class QuizSessionService : IQuizSessionService
             ? null
             : answer;
         var revealAnswers = _stage is QuizStage.QuestionResults or QuizStage.Completed;
+        var isSurvey = question.IsSurvey;
         var totalPlayers = _users.PlayerCount;
 
         var answers = new List<AnswerOptionView>(4);
@@ -369,7 +373,7 @@ public sealed class QuizSessionService : IQuizSessionService
                 index,
                 GetAnswerText(question, index),
                 _answers.Values.Count(value => value == index),
-                revealAnswers && question.CorrectAnswer == index));
+                revealAnswers && !isSurvey && question.CorrectAnswer == index));
         }
 
         return new QuestionView(
@@ -381,12 +385,13 @@ public sealed class QuizSessionService : IQuizSessionService
             answers,
             revealAnswers ? question.Explanation : string.Empty,
             selectedAnswer,
-            revealAnswers ? question.CorrectAnswer : null,
+            revealAnswers && !isSurvey ? question.CorrectAnswer : null,
             _answers.Count,
             totalPlayers,
             _stage == QuizStage.QuestionOpen ? _questionTimeoutSeconds : null,
             GetCurrentQuestionDeadlineUtc(),
-            CalculatePointsForQuestion(_currentQuestionIndex));
+            CalculatePointsForQuestion(_currentQuestionIndex),
+            isSurvey);
     }
 
     private void ResetSessionCore()
@@ -446,6 +451,11 @@ public sealed class QuizSessionService : IQuizSessionService
         _stage = QuizStage.QuestionResults;
 
         var question = _questions[_currentQuestionIndex];
+        if (question.IsSurvey)
+        {
+            return;
+        }
+
         var pointsForCurrentQuestion = CalculatePointsForQuestion(_currentQuestionIndex);
         
         foreach (var userName in _answers
@@ -458,18 +468,25 @@ public sealed class QuizSessionService : IQuizSessionService
 
     private int CalculatePointsForQuestion(int questionIndex)
     {
+        if (questionIndex >= 0 && questionIndex < _questions.Count && _questions[questionIndex].IsSurvey)
+        {
+            return 0;
+        }
+
         if (!_progressiveScoring)
         {
             return StaticModeCorrectAnswerPoints;
         }
 
-        if (questionIndex == 0)
+        var scoredQuestionIndex = _questions.Take(questionIndex).Count(question => !question.IsSurvey);
+
+        if (scoredQuestionIndex == 0)
         {
             return ProgressiveModeFirstQuestionPoints;
         }
 
         var points = (double)ProgressiveModeFirstQuestionPoints;
-        for (var i = 0; i < questionIndex; i++)
+        for (var i = 0; i < scoredQuestionIndex; i++)
         {
             points += points * 0.5;
         }
@@ -484,6 +501,11 @@ public sealed class QuizSessionService : IQuizSessionService
     }
 
     private bool IsAdmin(string userName) => _questOptions.IsAdminUserName(Normalize(userName));
+
+    private bool CurrentQuestionIsSurvey()
+        => _currentQuestionIndex >= 0
+           && _currentQuestionIndex < _questions.Count
+           && _questions[_currentQuestionIndex].IsSurvey;
 
     private long GetElapsedMillisecondsForCurrentQuestion()
     {
@@ -565,7 +587,8 @@ public sealed class QuizSessionService : IQuizSessionService
                 TotalPlayers: 0,
                 TimeoutSeconds: null,
                 DeadlineUtc: null,
-                Points: 0);
+                Points: CalculatePointsForQuestion(questionIndex),
+                IsSurvey: question.IsSurvey);
         }
     }
 

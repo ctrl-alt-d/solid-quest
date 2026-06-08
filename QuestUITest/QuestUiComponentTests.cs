@@ -196,6 +196,28 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
+    public void ResultCardForSurveyQuestionRendersDistributionWithoutCorrectLabel()
+    {
+        var question = CreateQuestion(
+            new AnswerOptionView(1, "Red", 4, false),
+            new AnswerOptionView(2, "Blue", 3, true),
+            new AnswerOptionView(3, "Green", 2, false),
+            new AnswerOptionView(4, "Yellow", 1, false)) with
+        {
+            CorrectAnswer = null,
+            IsSurvey = true
+        };
+
+        var cut = Render<ResultCard>(parameters => parameters
+            .Add(component => component.Question, question));
+
+        cut.FindAll(".result-bar-card").Should().HaveCount(4);
+        cut.FindAll(".correct-label").Should().BeEmpty();
+        cut.FindAll(".correct-result").Should().BeEmpty();
+        cut.Markup.Should().Contain("survey results");
+    }
+
+    [Fact]
     public void ResultCardRendersQuestionAndAnswersAsHtmlMarkup()
     {
         var question = CreateQuestion(
@@ -494,6 +516,30 @@ public class QuestUiComponentTests : BunitContext
         cut.Markup.Should().Contain("A · Red");
 
         quizSession.DidNotReceive().TrySubmitAnswer(admin.UserName, Arg.Any<int>(), out Arg.Any<string>());
+    }
+
+    [Fact]
+    public void QuestionCardForSurveyQuestionShowsEnquestaBadge()
+    {
+        var question = CreateQuestion(
+            new AnswerOptionView(1, "Red", 0, false),
+            new AnswerOptionView(2, "Blue", 0, false),
+            new AnswerOptionView(3, "Green", 0, false),
+            new AnswerOptionView(4, "Yellow", 0, false)) with
+        {
+            CorrectAnswer = null,
+            Points = 0,
+            IsSurvey = true
+        };
+
+        var cut = Render<QuestionCard>(parameters => parameters
+            .Add(component => component.Question, question));
+
+        var badge = cut.Find(".points-badge");
+
+        badge.TextContent.Should().Contain("Enquesta");
+        badge.ClassList.Should().Contain("survey-badge");
+        badge.TextContent.Should().NotContain("pts");
     }
 
     private static QuestionView CreateQuestion(params AnswerOptionView[] answers) => new(
@@ -812,4 +858,3 @@ public class QuestUiComponentTests : BunitContext
         cut.Markup.Should().Contain("Start session");
     }
 }
-
