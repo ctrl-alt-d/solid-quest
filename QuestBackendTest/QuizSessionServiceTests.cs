@@ -242,6 +242,54 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
+    public async Task SurveyQuestion_RevealsDistributionWithoutChangingLeaderboardOrCorrectAnswer()
+    {
+        var timeProvider = new ManualTimeProvider();
+        var session = CreateSession(timeProvider: timeProvider, questionLoader: new StubQuestionLoader(CreateSurveyQuestionLoadResult()));
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+        session.TryJoin("Bob", isAdmin: false, out _);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
+
+        timeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        session.TrySubmitAnswer("Alice", 1, out _);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(700));
+        session.TrySubmitAnswer("Bob", 2, out _);
+
+        var snapshot = session.GetSnapshot("Alice");
+
+        Assert.Equal(QuizStage.QuestionResults, snapshot.Stage);
+        Assert.True(snapshot.CurrentQuestion!.IsSurvey);
+        Assert.Equal(0, snapshot.CurrentQuestion.Points);
+        Assert.Null(snapshot.CurrentQuestion.CorrectAnswer);
+        Assert.Equal(new[] { 1, 1, 0, 0 }, snapshot.CurrentQuestion.Answers.Select(answer => answer.Votes));
+        Assert.Equal(new[] { false, false, false, false }, snapshot.CurrentQuestion.Answers.Select(answer => answer.IsCorrect));
+        Assert.Equal(
+            [
+                new LeaderboardEntry("Alice", 0, 0),
+                new LeaderboardEntry("Bob", 0, 0)
+            ],
+            snapshot.Leaderboard);
+    }
+
+    [Fact]
+    public async Task ProgressiveScoring_DoesNotCountSurveyQuestionsForLaterPointValues()
+    {
+        var session = CreateSession(questionLoader: new StubQuestionLoader(CreateSurveyFirstQuestionLoadResult()));
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: true);
+
+        session.TrySubmitAnswer("Alice", 1, out _);
+        session.TryAdvance("admin", out _);
+        session.TrySubmitAnswer("Alice", 2, out _);
+
+        var snapshot = session.GetSnapshot();
+
+        Assert.Equal([new LeaderboardEntry("Alice", 12, 0)], snapshot.Leaderboard);
+    }
+
+    [Fact]
     public async Task TrySubmitAnswer_AccumulatesElapsedMilliseconds_OnAcceptedAnswers()
     {
         var timeProvider = new ManualTimeProvider();
@@ -503,6 +551,54 @@ public sealed class QuizSessionServiceTests
                 Answer4 = "Tenir mètodes abstractes i implementats",
                 CorrectAnswer = 1,
                 Explanation = "<p>Explicació 2</p>"
+            }
+        ]);
+
+    private static QuestionLoadResult CreateSurveyQuestionLoadResult()
+        => QuestionLoadResult.Succeeded(
+            new QuestMetadata("Survey Quest", null, null),
+        [
+            new Question
+            {
+                Text = "What do you think?",
+                Image = null,
+                ImageAlt = null,
+                Answer1 = "Red",
+                Answer2 = "Blue",
+                Answer3 = "Green",
+                Answer4 = "Yellow",
+                CorrectAnswer = 0,
+                Explanation = "Opinion-only question."
+            }
+        ]);
+
+    private static QuestionLoadResult CreateSurveyFirstQuestionLoadResult()
+        => QuestionLoadResult.Succeeded(
+            new QuestMetadata("Mixed Quest", null, null),
+        [
+            new Question
+            {
+                Text = "What do you think?",
+                Image = null,
+                ImageAlt = null,
+                Answer1 = "Red",
+                Answer2 = "Blue",
+                Answer3 = "Green",
+                Answer4 = "Yellow",
+                CorrectAnswer = 0,
+                Explanation = "Opinion-only question."
+            },
+            new Question
+            {
+                Text = "Which one is correct?",
+                Image = null,
+                ImageAlt = null,
+                Answer1 = "Wrong",
+                Answer2 = "Right",
+                Answer3 = "Wrong again",
+                Answer4 = "Still wrong",
+                CorrectAnswer = 2,
+                Explanation = "The right answer is right."
             }
         ]);
 

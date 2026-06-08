@@ -157,9 +157,9 @@ public class QuestionLoader : IQuestionLoader
                 return $"Question {questionNumber} must define non-empty options.";
             }
 
-            if (question.CorrectAnswer is < 1 or > 4)
+            if (question.CorrectAnswer is < 0 or > 4)
             {
-                return $"Question {questionNumber} must define a correct answer between 1 and 4.";
+                return $"Question {questionNumber} must define a correct answer between 0 and 4.";
             }
 
             if (string.IsNullOrWhiteSpace(question.Explanation))
