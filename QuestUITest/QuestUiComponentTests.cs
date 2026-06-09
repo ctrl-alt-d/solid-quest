@@ -475,6 +475,75 @@ public class QuestUiComponentTests : BunitContext
     }
 
     [Fact]
+    public void PlayerSessionDispose_RemovesAuthenticatedRegularUser()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var playerSession = new PlayerSession(quizSession);
+
+        playerSession.Set("Alice", isAdmin: false, restoreToken: string.Empty);
+        playerSession.Dispose();
+
+        quizSession.Received(1).Leave("Alice");
+    }
+
+    [Fact]
+    public void PlayerSessionDispose_DoesNotRemoveAdmin()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var playerSession = new PlayerSession(quizSession);
+
+        playerSession.Set("admin", isAdmin: true, restoreToken: Guid.NewGuid().ToString());
+        playerSession.Dispose();
+
+        quizSession.DidNotReceive().Leave(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task AuthStateProvider_DoesNotRestoreRegularUserFromCookie()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var playerSession = new PlayerSession(quizSession);
+        var httpContextAccessor = CreateHttpContextAccessorWithAuthCookie("regular-token");
+        var provider = new CustomAuthStateProvider(playerSession, quizSession, httpContextAccessor);
+        quizSession
+            .TryRestoreUser("regular-token", out Arg.Any<User?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = null;
+                return false;
+            });
+
+        var state = await provider.GetAuthenticationStateAsync();
+
+        playerSession.IsAuthenticated.Should().BeFalse();
+        state.User.Identity!.IsAuthenticated.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AuthStateProvider_RestoresAdminFromCookie()
+    {
+        var quizSession = Substitute.For<IQuizSessionService>();
+        var playerSession = new PlayerSession(quizSession);
+        var httpContextAccessor = CreateHttpContextAccessorWithAuthCookie("admin-token");
+        var provider = new CustomAuthStateProvider(playerSession, quizSession, httpContextAccessor);
+        var admin = CreateUser("admin", isAdmin: true);
+        admin.RestoreToken = "admin-token";
+        quizSession
+            .TryRestoreUser("admin-token", out Arg.Any<User?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = admin;
+                return true;
+            });
+
+        var state = await provider.GetAuthenticationStateAsync();
+
+        playerSession.IsAuthenticated.Should().BeTrue();
+        playerSession.IsAdmin.Should().BeTrue();
+        state.User.IsInRole("Admin").Should().BeTrue();
+    }
+
+    [Fact]
     public void Home_PlayerAnswer_ClickingAnswerCallsTrySubmitAnswer()
     {
         var quizSession = Substitute.For<IQuizSessionService>();
@@ -587,6 +656,14 @@ public class QuestUiComponentTests : BunitContext
     private void AuthenticateAs(User user)
     {
         Services.GetRequiredService<PlayerSession>().Set(user.UserName, user.IsAdmin, user.RestoreToken);
+    }
+
+    private static IHttpContextAccessor CreateHttpContextAccessorWithAuthCookie(string restoreToken)
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers["Cookie"] = $"{QuestAuthCookie.CookieName}={restoreToken}";
+
+        return new HttpContextAccessor { HttpContext = httpContext };
     }
 
     private static QuizSessionSnapshot CreateEnrollmentSnapshot(bool canStart, IReadOnlyList<string> enrolledPlayers) => new(

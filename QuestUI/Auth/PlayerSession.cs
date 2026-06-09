@@ -1,6 +1,8 @@
+using QuestBackend;
+
 namespace QuestUI.Auth;
 
-public sealed class PlayerSession
+public sealed class PlayerSession(IQuizSessionService quizSession) : IDisposable
 {
     public string UserName { get; private set; } = string.Empty;
 
@@ -22,5 +24,13 @@ public sealed class PlayerSession
         UserName = string.Empty;
         RestoreToken = string.Empty;
         IsAdmin = false;
+    }
+
+    public void Dispose()
+    {
+        if (IsAuthenticated && !IsAdmin)
+        {
+            quizSession.Leave(UserName);
+        }
     }
 }

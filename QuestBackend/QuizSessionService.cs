@@ -125,7 +125,13 @@ public sealed class QuizSessionService : IQuizSessionService
             return false;
         }
 
-        return _users.TryGetByRestoreToken(restoreToken, out user);
+        if (!_users.TryGetByRestoreToken(restoreToken, out user) || user is null || !user.IsAdmin)
+        {
+            user = null;
+            return false;
+        }
+
+        return true;
     }
 
     public void Leave(string userName)
@@ -140,7 +146,7 @@ public sealed class QuizSessionService : IQuizSessionService
 
         lock (_lock)
         {
-            if (!_users.Contains(normalizedUserName))
+            if (!_users.TryGetByUserName(normalizedUserName, out var user) || user is null || user.IsAdmin)
             {
                 return;
             }

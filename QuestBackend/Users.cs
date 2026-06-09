@@ -22,17 +22,21 @@ public sealed class Users : IUsers
                 return false;
             }
 
+            var restoreToken = isAdmin ? CreateRestoreToken() : string.Empty;
             user = new User
             {
                 UserName = userName,
-                RestoreToken = CreateRestoreToken(),
+                RestoreToken = restoreToken,
                 Score = 0,
                 TotalMilliseconds = 0,
                 IsAdmin = isAdmin
             };
 
             _users[normalizedUserName] = user;
-            _usersByRestoreToken[user.RestoreToken] = user;
+            if (isAdmin)
+            {
+                _usersByRestoreToken[user.RestoreToken] = user;
+            }
         }
 
         errorMessage = null;

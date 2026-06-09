@@ -18,7 +18,7 @@ public sealed class QuizSessionServiceTests
 
         Assert.True(firstJoin);
         Assert.NotNull(firstUser);
-        Assert.True(Guid.TryParse(firstUser!.RestoreToken, out _));
+        Assert.Equal(string.Empty, firstUser!.RestoreToken);
         Assert.Equal(string.Empty, firstError);
         Assert.False(duplicateJoin);
         Assert.Contains("already taken", duplicateError);
@@ -72,30 +72,44 @@ public sealed class QuizSessionServiceTests
     }
 
     [Fact]
-    public void TryRestoreUser_ReturnsExistingUser_ByRestoreToken()
+    public void TryRestoreUser_DoesNotRestoreRegularUsers()
     {
         var session = CreateSession();
         session.TryJoin("Alice", isAdmin: false, out var joinedUser, out _);
 
         var restored = session.TryRestoreUser(joinedUser!.RestoreToken, out var restoredUser);
 
-        Assert.True(restored);
-        Assert.NotNull(restoredUser);
-        Assert.Equal("Alice", restoredUser!.UserName);
-        Assert.Equal(joinedUser.RestoreToken, restoredUser.RestoreToken);
-        Assert.False(restoredUser.IsAdmin);
+        Assert.False(restored);
+        Assert.Null(restoredUser);
+        Assert.Equal(string.Empty, joinedUser.RestoreToken);
     }
 
     [Fact]
-    public void LeaveByRestoreToken_RemovesUser_AndInvalidatesRestoreToken()
+    public void TryRestoreUser_RestoresAdmin_ByRestoreToken()
     {
         var session = CreateSession();
-        session.TryJoin("Alice", isAdmin: false, out var joinedUser, out _);
+        session.TryJoin("admin", isAdmin: true, out var joinedUser, out _);
+
+        var restored = session.TryRestoreUser(joinedUser!.RestoreToken, out var restoredUser);
+
+        Assert.True(restored);
+        Assert.NotNull(restoredUser);
+        Assert.Equal("admin", restoredUser!.UserName);
+        Assert.Equal(joinedUser.RestoreToken, restoredUser.RestoreToken);
+        Assert.True(restoredUser.IsAdmin);
+    }
+
+    [Fact]
+    public void LeaveByRestoreToken_DoesNotRemoveAdmin()
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out var joinedUser, out _);
 
         session.LeaveByRestoreToken(joinedUser!.RestoreToken);
 
-        Assert.False(session.TryRestoreUser(joinedUser.RestoreToken, out _));
-        Assert.Empty(session.GetSnapshot().EnrolledPlayers);
+        Assert.True(session.TryRestoreUser(joinedUser.RestoreToken, out var restoredAdmin));
+        Assert.True(session.GetSnapshot().HasAdmin);
+        Assert.Equal("admin", restoredAdmin!.UserName);
     }
 
     [Fact]
@@ -197,10 +211,41 @@ public sealed class QuizSessionServiceTests
                 new LeaderboardEntry("Bob", 0, 0)
             ],
             snapshot.Leaderboard);
-        Assert.True(session.TryRestoreUser(alice!.RestoreToken, out var restoredAlice));
-        Assert.True(session.TryRestoreUser(bob!.RestoreToken, out var restoredBob));
-        Assert.Equal("Alice", restoredAlice!.UserName);
-        Assert.Equal("Bob", restoredBob!.UserName);
+        Assert.False(session.TryRestoreUser(alice!.RestoreToken, out _));
+        Assert.False(session.TryRestoreUser(bob!.RestoreToken, out _));
+        Assert.Equal(string.Empty, alice.RestoreToken);
+        Assert.Equal(string.Empty, bob.RestoreToken);
+    }
+
+    [Fact]
+    public async Task Leave_RemovesRegularUserFromLeaderboardAndCurrentAnswers_AfterQuestStarts()
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out _);
+        session.TryJoin("Alice", isAdmin: false, out _);
+        session.TryJoin("Bob", isAdmin: false, out _);
+        await LoadAndStartSessionAsync(session, "admin", progressiveScoring: false);
+        session.TrySubmitAnswer("Alice", 1, out _);
+
+        session.Leave("Alice");
+        var snapshot = session.GetSnapshot("Bob");
+
+        Assert.Equal(["Bob"], snapshot.EnrolledPlayers);
+        Assert.Equal([new LeaderboardEntry("Bob", 0, 0)], snapshot.Leaderboard);
+        Assert.Equal(0, snapshot.CurrentQuestion!.Responses);
+        Assert.Equal([0, 0, 0, 0], snapshot.CurrentQuestion.Answers.Select(answer => answer.Votes));
+        Assert.Equal(1, snapshot.CurrentQuestion.TotalPlayers);
+    }
+
+    [Fact]
+    public void Leave_DoesNotRemoveAdmin()
+    {
+        var session = CreateSession();
+        session.TryJoin("admin", isAdmin: true, out _);
+
+        session.Leave("admin");
+
+        Assert.True(session.GetSnapshot().HasAdmin);
     }
 
     [Fact]

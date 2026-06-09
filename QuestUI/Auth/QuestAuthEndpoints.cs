@@ -29,7 +29,15 @@ public static class QuestAuthEndpoints
                 return Results.Redirect(errorUrl);
             }
 
-            httpContext.Response.Cookies.Append(QuestAuthCookie.CookieName, user.RestoreToken, QuestAuthCookie.Create(httpContext));
+            if (user.IsAdmin)
+            {
+                httpContext.Response.Cookies.Append(QuestAuthCookie.CookieName, user.RestoreToken, QuestAuthCookie.Create(httpContext));
+            }
+            else
+            {
+                httpContext.Response.Cookies.Delete(QuestAuthCookie.CookieName, QuestAuthCookie.Delete(httpContext));
+            }
+
             return Results.Redirect("/");
         }).DisableAntiforgery();
 
